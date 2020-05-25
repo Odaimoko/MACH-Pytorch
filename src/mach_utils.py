@@ -84,6 +84,25 @@ def create_record_dir(cfg):
     """
     pass
 
+ # ─── DECORATORS ─────────────────────────────────────────────────────────────────
+
+
+def log_time(*text, record=None):
+    def real_deco(func):
+        @wraps(func)
+        def impl(*args, **kw):
+            start = time.clock()
+            func(*args, **kw)
+            end = time.clock()
+            r = print if not record else record  # 如果没有record，默认print
+            t = (func.__name__,) if not text else text
+            # print(r, t)
+            r(*t, "Time elapsed: %.3f" % (end - start))
+
+        return impl
+
+    return real_deco
+
 
 if __name__ == "__main__":
     from argparse import ArgumentParser
