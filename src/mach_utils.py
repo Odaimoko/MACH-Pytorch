@@ -49,7 +49,7 @@ def feature_hash(original_dim, dest_dim, r, dir_path):
         ["feature_hash", str(r)])+".npy"), mapping)
 
 
-def get_label_hash_dict(dir_path, r):
+def get_label_hash(dir_path, r):
     """
         load label mapping
         return: counts, mapping, inv_mapping
@@ -59,7 +59,7 @@ def get_label_hash_dict(dir_path, r):
     return [np.load(os.path.join(dir_path, "_".join([n, str(r)]) + ".npy")) for n in name]
 
 
-def get_feat_hash_dict(dir_path, r):
+def get_feat_hash(dir_path, r):
     """
         load feature mapping
     """
@@ -69,7 +69,10 @@ def get_feat_hash_dict(dir_path, r):
 
 
 def get_config(path) -> Dict:
-    return {}
+    if os.path.exists(path):
+        return yaml.safe_load(path)
+    else:
+        raise FileNotFoundError(path)
 
 
 def mkdir(path):
