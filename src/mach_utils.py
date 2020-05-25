@@ -36,7 +36,6 @@ def label_hash(num_labels, b, r, dir_path):
     mkdir(dir_path)
     for n, v in zip(name, var):
         np.save(os.path.join(dir_path, "_".join([n, str(r)]) + ".npy"), v)
-    info = {'num_labels': num_labels}
 
 
 def feature_hash(original_dim, dest_dim, r, dir_path):
@@ -50,18 +49,21 @@ def feature_hash(original_dim, dest_dim, r, dir_path):
         ["feature_hash", str(r)])+".npy"), mapping)
 
 
-def get_label_hash_dict(dir_path):
+def get_label_hash_dict(dir_path, r):
     """
         load label mapping
+        return: counts, mapping, inv_mapping
     """
-    pass
+
+    name = ["counts", "mapping", "inv_mapping"]
+    return [np.load(os.path.join(dir_path, "_".join([n, str(r)]) + ".npy")) for n in name]
 
 
-def get_feat_hash_dict(dir_path):
+def get_feat_hash_dict(dir_path, r):
     """
         load feature mapping
     """
-    pass
+    return np.load(os.path.join(dir_path, "_".join(["feature_hash", str(r)])+".npy"))
 
 # ─── MISC ─────────────────────────────────────────────────────────────────────
 
