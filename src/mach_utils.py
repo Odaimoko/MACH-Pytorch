@@ -32,6 +32,9 @@ def log_time(*text, record=None):
 
 
 def evaluate():
+    """
+        Return quite a few measurement scores
+    """
     pass
 
 
@@ -100,10 +103,17 @@ def get_feat_hash(dir_path, r):
 
 def get_config(path) -> Dict:
     if os.path.exists(path):
-        with open(path,'r',encoding='utf8') as f:
-            return yaml.safe_load(f) 
+        with open(path, 'r', encoding='utf8') as f:
+            return yaml.safe_load(f)
     else:
         raise FileNotFoundError(path)
+
+
+def get_loader(cfg):
+    """
+        Return train val and test loader 
+    """
+    pass
 
 
 def mkdir(path):
@@ -118,7 +128,7 @@ def create_record_dir(cfg):
     """
         Create necessary directories for training and logging
     """
-    dirs = ['models','log',]
+    dirs = ['models', 'log', ]
 
 
 if __name__ == "__main__":
