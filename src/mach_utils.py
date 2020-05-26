@@ -2,14 +2,43 @@ import os
 from collections import Counter
 from multiprocessing import Pool
 from typing import Dict
-
+import time
+from functools import wraps
 import numpy as np
 from sklearn.utils import murmurhash3_32 as mmh3
 
 import yaml
+
+# ─── DECORATORS ─────────────────────────────────────────────────────────────────
+
+
+def log_time(*text, record=None):
+    def real_deco(func):
+        @wraps(func)
+        def impl(*args, **kw):
+            start = time.perf_counter()
+            func(*args, **kw)
+            end = time.perf_counter()
+            r = print if not record else record  # 如果没有record，默认print
+            t = (func.__name__,) if not text else text
+            # print(r, t)
+            r(*t, "Time elapsed: %.3f" % (end - start))
+
+        return impl
+
+    return real_deco
+
+# ─── TRAINING AND EVALUATION ────────────────────────────────────────────────────
+
+
+def evaluate():
+    pass
+
+
 # ─── PREPROCESS ─────────────────────────────────────────────────────────────────
 
 
+@log_time("Label hash...")
 def label_hash(num_labels, b, r, dir_path):
     """
         Save label->[b] mapping results to a file
@@ -38,6 +67,7 @@ def label_hash(num_labels, b, r, dir_path):
         np.save(os.path.join(dir_path, "_".join([n, str(r)]) + ".npy"), v)
 
 
+@log_time("Feature hash...")
 def feature_hash(original_dim, dest_dim, r, dir_path):
     """
         Save #_original_dim->#_feat_dim mapping results to a file
@@ -70,7 +100,8 @@ def get_feat_hash(dir_path, r):
 
 def get_config(path) -> Dict:
     if os.path.exists(path):
-        return yaml.safe_load(path)
+        with open(path,'r',encoding='utf8') as f:
+            return yaml.safe_load(f) 
     else:
         raise FileNotFoundError(path)
 
@@ -87,26 +118,7 @@ def create_record_dir(cfg):
     """
         Create necessary directories for training and logging
     """
-    pass
-
- # ─── DECORATORS ─────────────────────────────────────────────────────────────────
-
-
-def log_time(*text, record=None):
-    def real_deco(func):
-        @wraps(func)
-        def impl(*args, **kw):
-            start = time.clock()
-            func(*args, **kw)
-            end = time.clock()
-            r = print if not record else record  # 如果没有record，默认print
-            t = (func.__name__,) if not text else text
-            # print(r, t)
-            r(*t, "Time elapsed: %.3f" % (end - start))
-
-        return impl
-
-    return real_deco
+    dirs = ['models','log',]
 
 
 if __name__ == "__main__":
