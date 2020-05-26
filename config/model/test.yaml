@@ -8,7 +8,7 @@ hidden:
 
 # ─── TRAINING ───────────────────────────────────────────────────────────────────
 
-batch_size:
+batch_size: 32
 begin_epoch:
 end_epoch:
 optimizer:

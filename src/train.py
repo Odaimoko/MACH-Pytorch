@@ -5,13 +5,14 @@ from fc_network import FCNetwork
 import torch
 import tqdm
 
+
 def get_args():
     p = ArgumentParser()
     p.add_argument("--rep", dest="rep", type=int, default=0,
                    help="Which reptition to train")
     p.add_argument("--model", dest="model", type=str, required=True)
     p.add_argument("--dataset", dest="dataset", type=str, required=True)
-    p.add_argument("--gpu", dest="gpu", type=str, required=False, default="0",
+    p.add_argument("--gpus", dest="gpus", type=str, required=False, default="0",
                    help="A string that specifies which GPU you want to use, split by comma. Eg 0,1")
     return p.parse_args()
 
@@ -70,7 +71,8 @@ def train(data_cfg, model_cfg, rep, gpus, train_loader, val_loader):
 if __name__ == "__main__":
     a = get_args()
     data_cfg = get_config(a.dataset)
+    model_cfg = get_config(a.model)
     create_record_dir(data_cfg)
     # load dataset
     gpus = [int(i) for i in a.gpus.split(",")]
-    train_loader, val_loader, test_loader = get_loader(data_cfg)
+    train_loader, val_loader, test_loader = get_loader(data_cfg, model_cfg)

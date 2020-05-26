@@ -6,9 +6,9 @@ import time
 from functools import wraps
 import numpy as np
 from sklearn.utils import murmurhash3_32 as mmh3
-
+from dataset import XCDataset
 import yaml
-
+import torch
 # ─── DECORATORS ─────────────────────────────────────────────────────────────────
 
 
@@ -109,11 +109,19 @@ def get_config(path) -> Dict:
         raise FileNotFoundError(path)
 
 
-def get_loader(cfg):
+def get_loader(data_cfg, model_cfg):
     """
-        Return train val and test loader 
+        Return train, val and test loader 
     """
-    pass
+    name = data_cfg['name']
+    data_dir = os.path.join("data", name)
+    train_file = name+"_"+"train.txt"
+    train_file = os.path.join(data_dir, train_file)
+    train_set = XCDataset(train_file, data_cfg, model_cfg)
+    print(train_set[0])
+    train_loader = torch.utils.data.DataLoader(
+        train_set, batch_size=model_cfg['batch_size'])
+    return train_loader
 
 
 def mkdir(path):
