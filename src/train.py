@@ -8,12 +8,12 @@ import tqdm
 
 def get_args():
     p = ArgumentParser()
-    p.add_argument("--rep", dest="rep", type=int, default=0,
-                   help="Which reptition to train")
-    p.add_argument("--model", dest="model", type=str, required=True)
-    p.add_argument("--dataset", dest="dataset", type=str, required=True)
-    p.add_argument("--gpus", dest="gpus", type=str, required=False, default="0",
-                   help="A string that specifies which GPU you want to use, split by comma. Eg 0,1")
+    p.add_argument("--rep", dest = "rep", type = int, default = 0,
+                   help = "Which reptition to train")
+    p.add_argument("--model", dest = "model", type = str, required = True)
+    p.add_argument("--dataset", dest = "dataset", type = str, required = True)
+    p.add_argument("--gpus", dest = "gpus", type = str, required = False, default = "0",
+                   help = "A string that specifies which GPU you want to use, split by comma. Eg 0,1")
     return p.parse_args()
 
 
@@ -33,11 +33,11 @@ def train(data_cfg, model_cfg, rep, gpus, train_loader, val_loader):
     best_param = os.path.join(model_dir, "best_ckpt.pkl")
     # build model and optimizers
     # TODO: change num_labels to B
-    layers = [data_cfg['ori_dim']]+model_cfg['hidden']+[data_cfg['num_labels']]
+    layers = [data_cfg['ori_dim']] + model_cfg['hidden'] + [data_cfg['num_labels']]
     model = FCNetwork(layers)
     if cuda:
-        model = torch.nn.DataParallel(model, device_ids=gpus).cuda()
-    opt = torch.optim.Adam(model.parameters(), lr=model_cfg['lr'])
+        model = torch.nn.DataParallel(model, device_ids = gpus).cuda()
+    opt = torch.optim.Adam(model.parameters(), lr = model_cfg['lr'])
     lr_sch = torch.optim.lr_scheduler.MultiStepLR(
         opt, model_cfg['lr_step'], model_cfg['lr_factor'])
     loss_func = torch.nn.BCEWithLogitsLoss()
@@ -68,10 +68,10 @@ def train(data_cfg, model_cfg, rep, gpus, train_loader, val_loader):
             loss = loss_func(out, y)
             loss.backward()
             opt.step()
-            lr_sch.step()
+            lr_sch.step(ep)
             print(loss)
         # evaluate on val set
-        evaluate()
+        evaluate(model,val_loader,)
 
 
 if __name__ == "__main__":
@@ -82,4 +82,4 @@ if __name__ == "__main__":
     # load dataset
     gpus = [int(i) for i in a.gpus.split(",")]
     train_loader, val_loader, test_loader = get_loader(data_cfg, model_cfg)
-    train(data_cfg, model_cfg, 0, [0], train_loader, val_loader)
+    train(data_cfg, model_cfg, a.rep, gpus, train_loader, val_loader)

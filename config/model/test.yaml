@@ -12,7 +12,7 @@ hidden:
 
 batch_size: 32
 begin_epoch: 0
-end_epoch: 2
+end_epoch: 10
 lr: .001
 lr_step:
   - 30

@@ -1,3 +1,4 @@
 name: "bibtex"
 num_labels: 159
 ori_dim: 1836
+train_size: 4380
