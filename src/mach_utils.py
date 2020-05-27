@@ -116,12 +116,19 @@ def get_loader(data_cfg, model_cfg):
     name = data_cfg['name']
     data_dir = os.path.join("data", name)
     train_file = name+"_"+"train.txt"
+    test_file = name+"_"+"test.txt"
     train_file = os.path.join(data_dir, train_file)
+    test_file = os.path.join(data_dir, test_file)
     train_set = XCDataset(train_file, data_cfg, model_cfg)
     print(train_set[0])
     train_loader = torch.utils.data.DataLoader(
         train_set, batch_size=model_cfg['batch_size'])
-    return train_loader
+    val_loader = None
+    test_set = XCDataset(test_file, data_cfg, model_cfg)
+    test_loader = torch.utils.data.DataLoader(
+        test_set, batch_size=model_cfg['batch_size'])
+
+    return train_loader, val_loader, test_loader
 
 
 def mkdir(path):

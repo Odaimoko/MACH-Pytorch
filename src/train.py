@@ -26,20 +26,21 @@ def train(data_cfg, model_cfg, rep, gpus, train_loader, val_loader):
     b = model_cfg['b']
     R = model_cfg['r']
     model_dir = os.path.join("models", "_".join([
-        data_cfg["name"], str(b), str(R), str(dest_dim), rep
+        data_cfg["name"], str(b), str(R), str(dest_dim), str(rep)
     ]))  # each repetition has its own dir
     mkdir(model_dir)
     latest_param = os.path.join(model_dir, "final_ckpt.pkl")
     best_param = os.path.join(model_dir, "best_ckpt.pkl")
     # build model and optimizers
-    layers = [data_cfg['ori_dim']]+model_cfg['hidden']+[model_cfg['dest_dim']]
+    # TODO: change num_labels to B
+    layers = [data_cfg['ori_dim']]+model_cfg['hidden']+[data_cfg['num_labels']]
     model = FCNetwork(layers)
     if cuda:
         model = torch.nn.DataParallel(model, device_ids=gpus).cuda()
     opt = torch.optim.Adam(model.parameters(), lr=model_cfg['lr'])
     lr_sch = torch.optim.lr_scheduler.MultiStepLR(
         opt, model_cfg['lr_step'], model_cfg['lr_factor'])
-    loss_func = torch.nn.CrossEntropyLoss()
+    loss_func = torch.nn.BCEWithLogitsLoss()
     # load pretrained parameters/checkpoint
     begin = model_cfg['begin_epoch']
     preload_path = model_cfg["pretrained"] if model_cfg["pretrained"] else latest_param
@@ -55,6 +56,10 @@ def train(data_cfg, model_cfg, rep, gpus, train_loader, val_loader):
         model.train()
         for i, sample in enumerate(train_loader):
             X, y = sample
+            # TODO: Check if it is better to unfold the neural network manually using sparse vectors,
+            #  or just make vectors dense
+            X = X.to_dense().squeeze()
+            y = y.to_dense().squeeze()
             if cuda:
                 X = X.cuda()
                 y = y.cuda()
@@ -64,6 +69,7 @@ def train(data_cfg, model_cfg, rep, gpus, train_loader, val_loader):
             loss.backward()
             opt.step()
             lr_sch.step()
+            print(loss)
         # evaluate on val set
         evaluate()
 
@@ -76,3 +82,4 @@ if __name__ == "__main__":
     # load dataset
     gpus = [int(i) for i in a.gpus.split(",")]
     train_loader, val_loader, test_loader = get_loader(data_cfg, model_cfg)
+    train(data_cfg, model_cfg, 0, [0], train_loader, val_loader)
