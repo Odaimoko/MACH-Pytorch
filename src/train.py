@@ -8,12 +8,12 @@ import tqdm
 
 def get_args():
     p = ArgumentParser()
-    p.add_argument("--rep", dest = "rep", type = int, default = 0,
-                   help = "Which reptition to train")
-    p.add_argument("--model", dest = "model", type = str, required = True)
-    p.add_argument("--dataset", dest = "dataset", type = str, required = True)
-    p.add_argument("--gpus", dest = "gpus", type = str, required = False, default = "0",
-                   help = "A string that specifies which GPU you want to use, split by comma. Eg 0,1")
+    p.add_argument("--rep", dest="rep", type=int, default=0,
+                   help="Which reptition to train")
+    p.add_argument("--model", dest="model", type=str, required=True)
+    p.add_argument("--dataset", dest="dataset", type=str, required=True)
+    p.add_argument("--gpus", dest="gpus", type=str, required=False, default="0",
+                   help="A string that specifies which GPU you want to use, split by comma. Eg 0,1")
     return p.parse_args()
 
 
@@ -32,12 +32,13 @@ def train(data_cfg, model_cfg, rep, gpus, train_loader, val_loader):
     latest_param = os.path.join(model_dir, "final_ckpt.pkl")
     best_param = os.path.join(model_dir, "best_ckpt.pkl")
     # build model and optimizers
-    # TODO: change num_labels to B
-    layers = [data_cfg['ori_dim']] + model_cfg['hidden'] + [data_cfg['num_labels']]
+
+    layers = [dest_dim] + \
+        model_cfg['hidden'] + [b]
     model = FCNetwork(layers)
     if cuda:
-        model = torch.nn.DataParallel(model, device_ids = gpus).cuda()
-    opt = torch.optim.Adam(model.parameters(), lr = model_cfg['lr'])
+        model = torch.nn.DataParallel(model, device_ids=gpus).cuda()
+    opt = torch.optim.Adam(model.parameters(), lr=model_cfg['lr'])
     lr_sch = torch.optim.lr_scheduler.MultiStepLR(
         opt, model_cfg['lr_step'], model_cfg['lr_factor'])
     loss_func = torch.nn.BCEWithLogitsLoss()
@@ -51,6 +52,8 @@ def train(data_cfg, model_cfg, rep, gpus, train_loader, val_loader):
         lr_sch.load_state_dict(meta_info['lr_sch'])
         begin = meta_info['epoch']
     end = model_cfg['end_epoch']
+    # load mapping
+
     # train
     for ep in range(begin, end):
         model.train()
@@ -71,7 +74,7 @@ def train(data_cfg, model_cfg, rep, gpus, train_loader, val_loader):
             lr_sch.step(ep)
             print(loss)
         # evaluate on val set
-        evaluate(model,val_loader,)
+        evaluate(model, val_loader,)
 
 
 if __name__ == "__main__":
@@ -81,5 +84,6 @@ if __name__ == "__main__":
     create_record_dir(data_cfg)
     # load dataset
     gpus = [int(i) for i in a.gpus.split(",")]
-    train_loader, val_loader, test_loader = get_loader(data_cfg, model_cfg)
+    train_loader, val_loader, test_loader = get_loader(
+        data_cfg, model_cfg, a.rep)
     train(data_cfg, model_cfg, a.rep, gpus, train_loader, val_loader)
