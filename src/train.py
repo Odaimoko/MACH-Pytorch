@@ -1,5 +1,5 @@
 from argparse import ArgumentParser
-from mach_utils import get_config, create_record_dir, mkdir, get_loader, evaluate
+from mach_utils import get_config, create_record_dir, mkdir, get_loader, evaluate_single
 import os
 from fc_network import FCNetwork
 import torch
@@ -74,7 +74,8 @@ def train(data_cfg, model_cfg, rep, gpus, train_loader, val_loader):
             lr_sch.step(ep)
             print(loss)
         # evaluate on val set
-        evaluate(model, val_loader,)
+        gt,pred = evaluate_single(model, val_loader,)
+        print("EVALUATION")
 
 
 if __name__ == "__main__":

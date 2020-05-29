@@ -1,7 +1,7 @@
 import os
 from collections import Counter
 from multiprocessing import Pool
-from typing import Dict
+from typing import Dict, List
 import time
 from functools import wraps
 import numpy as np
@@ -9,8 +9,9 @@ from sklearn.utils import murmurhash3_32 as mmh3
 from dataset import XCDataset
 import yaml
 import torch
-
-
+import torch.nn.functional as F
+from xclib.evaluation.xc_metrics import *
+from torch_utils import AverageMeter
 # ─── DECORATORS ─────────────────────────────────────────────────────────────────
 
 
@@ -32,14 +33,53 @@ def log_time(*text, record=None):
 
 
 # ─── TRAINING AND EVALUATION ────────────────────────────────────────────────────
+def compute_scores(model, loader):
+    """
+        Get all scores. For the sake of inverse propensity, we need to first collect all labels.
+        TODO: -  of course we can compute it in advance 
+    """
+    cuda = torch.cuda.is_available()
+    if cuda and not model.is_cuda():
+        model = model.cuda()
+    gt = []
+    scores = []
+    for i, data in enumerate(loader):
+        X, y = data
+        X = X.to_dense().squeeze()
+        y = y.to_dense().squeeze()
+        if cuda:
+            X = X.cuda()
+            y = y.cuda()
+        out = model(X)
+        # append cuda tensor
+        out = F.softmax(out, 1)
+        gt.append(y)
+        scores.append(out)
+    gt = torch.cat(gt)
+    scores = torch.cat(scores)
+
+    return gt, scores
 
 
-def evaluate(model, loader):
-    """
-        Return quite a few measurement scores
-    """
+def compute_scores_all(models: List, loader):
     pass
 
+
+def evaluate_single(model: torch.nn.Module, loader):
+    """
+        Return quite a few measurement scores, only for a single repetition
+    """
+    # p@k, psp@k, ndcg, psndcg, loss, map
+    gt, pred = compute_scores(model, loader)
+    
+    return gt, pred
+
+
+def evaluate_all(models: List, loader):
+    """
+        Use all models and average their results
+    """
+    pass
 
 # ─── PREPROCESS ─────────────────────────────────────────────────────────────────
 
