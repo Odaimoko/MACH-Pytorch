@@ -4,16 +4,17 @@ import os
 from fc_network import FCNetwork
 import torch
 import tqdm
+import pprint
 
 
 def get_args():
     p = ArgumentParser()
-    p.add_argument("--rep", dest="rep", type=int, default=0,
-                   help="Which reptition to train")
-    p.add_argument("--model", dest="model", type=str, required=True)
-    p.add_argument("--dataset", dest="dataset", type=str, required=True)
-    p.add_argument("--gpus", dest="gpus", type=str, required=False, default="0",
-                   help="A string that specifies which GPU you want to use, split by comma. Eg 0,1")
+    p.add_argument("--rep", dest = "rep", type = int, default = 0,
+                   help = "Which reptition to train")
+    p.add_argument("--model", dest = "model", type = str, required = True)
+    p.add_argument("--dataset", dest = "dataset", type = str, required = True)
+    p.add_argument("--gpus", dest = "gpus", type = str, required = False, default = "0",
+                   help = "A string that specifies which GPU you want to use, split by comma. Eg 0,1")
     return p.parse_args()
 
 
@@ -32,13 +33,13 @@ def train(data_cfg, model_cfg, rep, gpus, train_loader, val_loader):
     latest_param = os.path.join(model_dir, "final_ckpt.pkl")
     best_param = os.path.join(model_dir, "best_ckpt.pkl")
     # build model and optimizers
-
+    
     layers = [dest_dim] + \
-        model_cfg['hidden'] + [b]
+             model_cfg['hidden'] + [b]
     model = FCNetwork(layers)
     if cuda:
-        model = torch.nn.DataParallel(model, device_ids=gpus).cuda()
-    opt = torch.optim.Adam(model.parameters(), lr=model_cfg['lr'])
+        model = torch.nn.DataParallel(model, device_ids = gpus).cuda()
+    opt = torch.optim.Adam(model.parameters(), lr = model_cfg['lr'])
     lr_sch = torch.optim.lr_scheduler.MultiStepLR(
         opt, model_cfg['lr_step'], model_cfg['lr_factor'])
     loss_func = torch.nn.BCEWithLogitsLoss()
@@ -53,7 +54,7 @@ def train(data_cfg, model_cfg, rep, gpus, train_loader, val_loader):
         begin = meta_info['epoch']
     end = model_cfg['end_epoch']
     # load mapping
-
+    
     # train
     for ep in range(begin, end):
         model.train()
@@ -72,10 +73,12 @@ def train(data_cfg, model_cfg, rep, gpus, train_loader, val_loader):
             loss.backward()
             opt.step()
             lr_sch.step(ep)
-            print(loss)
+            # print(loss)
         # evaluate on val set
-        gt,pred = evaluate_single(model, val_loader,)
-        print("EVALUATION")
+        print("EVALUATION ON VAL SET")
+        l, d, m = evaluate_single(model, val_loader, model_cfg)
+        pprint.pprint(d)
+        print("Loss: %.3f, mAP: %.3f" % (l, m))
 
 
 if __name__ == "__main__":
