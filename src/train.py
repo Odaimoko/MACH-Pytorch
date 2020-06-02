@@ -65,11 +65,12 @@ def train(data_cfg, model_cfg, rep, gpus, train_loader, val_loader):
     # load mapping
     ori_labels = data_cfg['num_labels']
     
-    record_dir = "record"
+    record_dir = data_cfg["record_dir"]
     label_path = os.path.join(record_dir, "_".join(
         [name, str(ori_labels), str(b), str(R)]))  # Bibtex_159_100_32
     _, label_mapping, _ = get_label_hash(label_path, rep)
     label_mapping = torch.from_numpy(label_mapping)
+    
     # train
     for ep in tqdm.tqdm(range(begin, end)):
         model.train()
@@ -88,7 +89,6 @@ def train(data_cfg, model_cfg, rep, gpus, train_loader, val_loader):
             loss.backward()
             opt.step()
             lr_sch.step(ep)
-        # evaluate on val set
         
         logging.info("-----------------")
         logging.info("Epoch %d" % (ep))
@@ -106,7 +106,7 @@ def train(data_cfg, model_cfg, rep, gpus, train_loader, val_loader):
         if best_score < m:
             best_score = m
             is_best = True
-            logging.warning("FOUND A NEW RECORD! {:.3f}".format(m))
+            logging.warning("A NEW RECORD! {:.3f}".format(m))
         else:
             is_best = False
         # might be cuda, might not be cuda, please make sure it is consistent
@@ -136,19 +136,17 @@ if __name__ == "__main__":
     create_record_dir(data_cfg)
     # load dataset
     gpus = [int(i) for i in a.gpus.split(",")]
-    # train_loader, val_loader, test_loader = get_loader(
-    #     data_cfg, model_cfg, a.rep)
     
     name = data_cfg['name']
     data_dir = os.path.join("data", name)
     train_file = name + "_" + "train.txt"
-    test_file = name + "_" + "test.txt"
     train_file = os.path.join(data_dir, train_file)
-    test_file = os.path.join(data_dir, test_file)
     train_set = XCDataset(train_file, a.rep, data_cfg, model_cfg, 'tr')
     val_set = XCDataset(train_file, a.rep, data_cfg, model_cfg, 'val')
     train_loader = torch.utils.data.DataLoader(
         train_set, batch_size = model_cfg['batch_size'])
     val_loader = torch.utils.data.DataLoader(
         val_set, batch_size = model_cfg['batch_size'])
+    
+    
     train(data_cfg, model_cfg, a.rep, gpus, train_loader, val_loader)

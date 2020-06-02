@@ -100,15 +100,23 @@ def compute_scores(model, loader, label_mapping = None, b = None):
             X = X.cuda()
             y = y.cuda()
         out = model(X)
-        loss_meter.update(loss_func(out, y), X.shape[0])
+        if label_mapping is not None:
+            loss_meter.update(loss_func(out, y), X.shape[0])
         out = F.softmax(out, 1)
-        map_meter.add(out.detach(), y)  # map_meter uses softmax scores -
+        if label_mapping is not None:
+            map_meter.add(out.detach(), y)  # map_meter uses softmax scores -
         # or whatever? scoring function is monotonic
         # append cuda tensor
         gt.append(y)
         scores.append(out)
-    gt = scipy.sparse.csr_matrix(torch.cat(gt).cpu().numpy())
-    scores = torch.cat(scores).cpu().detach().numpy()
+    gt = torch.cat(gt)
+    scores = torch.cat(scores)
+    if gt.is_sparse:
+        gt = gt.to_dense()
+    if scores.is_sparse:
+        scores = scores.to_dense()
+    gt = scipy.sparse.csr_matrix(gt.cpu().numpy())
+    scores = scores.cpu().detach().numpy()
     mAP = map_meter.value()
     return gt, scores, loss_meter.avg, mAP
 
@@ -123,7 +131,7 @@ def evaluate_scores(gt, scores, model_cfg):
         "prec": prec,
         "ndcg": ndcg,
         "psp": PSprec,
-        "psn": PSnDCG
+        "psndcg": PSnDCG
     }
     return d
 

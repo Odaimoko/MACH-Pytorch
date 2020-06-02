@@ -19,7 +19,7 @@ if __name__ == "__main__":
     dest_dim = model_cfg['dest_dim']
     b = model_cfg['b']
     R = model_cfg['r']
-    record_dir = "record"
+    record_dir = data_cfg["record_dir"]
 
     label_path = os.path.join(record_dir, "_".join(
         [data_cfg['name'], str(num_labels), str(b), str(R)]))  # Bibtex_159_100_32

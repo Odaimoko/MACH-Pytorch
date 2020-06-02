@@ -2,8 +2,8 @@ from mach_utils import *
 import logging
 from argparse import ArgumentParser
 from fc_network import FCNetwork
-
-
+import  pprint
+import  tqdm
 def get_args():
     p = ArgumentParser()
     p.add_argument("--model", dest = "model", type = str, required = True)
@@ -12,6 +12,18 @@ def get_args():
     p.add_argument("--gpus", dest = "gpus", type = str, required = False, default = "0",
                    help = "A string that specifies which GPU you want to use, split by comma. Eg 0,1")
     return p.parse_args()
+
+
+def get_inv_hash(counts, inv_mapping, j):
+    """
+    
+    :param counts:
+    :param inv_mapping:
+    :param j: \in [0,b), the index we want to  map back. Can be a tensor
+    :return:
+    """
+    labels = inv_mapping[counts[j]: counts[j + 1]]
+    return labels
 
 
 def evaluate():
@@ -26,28 +38,39 @@ if __name__ == "__main__":
     model_cfg = get_config(a.model)
     log_file = "eval.log"
     model_dir = os.path.join(model_cfg["model_dir"], data_cfg["name"])
-    logging.basicConfig(filename = os.path.join(model_dir, log_file), level = logging.INFO)
+    logging.basicConfig(filename = os.path.join(model_dir, log_file), level = logging.INFO,
+                        format = '%(asctime)s %(levelname)-8s %(message)s', datefmt = '%Y-%m-%d %H:%M:%S')
     
     # load models
     cuda = torch.cuda.is_available()
     R = model_cfg['r']
-    pred = []
-    gt = None
+    b = model_cfg['b']
+    ori_labels = data_cfg["num_labels"]
+    dest_dim = model_cfg['dest_dim']
     name = data_cfg['name']
-    
+    record_dir = data_cfg["record_dir"]
     data_dir = os.path.join("data", name)
     
-    test_file = name + "_" + "test.txt"
-    
+    # load dataset
+    test_file = os.path.join(data_dir, name + "_" + "test.txt")
     test_set = XCDataset(test_file, 0, data_cfg, model_cfg, 'te')
     test_loader = torch.utils.data.DataLoader(
         test_set, batch_size = model_cfg['batch_size'])
-    for r in range(R):
+    
+    pred_avg_meter = AverageMeter()
+    gt = None
+    for r in tqdm.tqdm(range(R)):
         model_dir = get_model_dir(data_cfg, model_cfg, r)
         best_param = os.path.join(model_dir, model_cfg["best_file"])
         
         layers = [dest_dim] + model_cfg['hidden'] + [b]
         model = FCNetwork(layers)
+        
+        # load mapping
+        label_path = os.path.join(record_dir, "_".join(
+            [name, str(ori_labels), str(b), str(R)]))  # Bibtex_159_100_32
+        counts, label_mapping, inv_mapping = get_label_hash(label_path, r)
+        label_mapping = torch.from_numpy(label_mapping)
         
         if cuda:
             model = torch.nn.DataParallel(model, device_ids = gpus).cuda()
@@ -57,18 +80,16 @@ if __name__ == "__main__":
             model.load_state_dict(meta_info['model'])
         else:
             raise FileNotFoundError("Model {} does not exist.".format(preload_path))
-        gt, p, _, _ = compute_scores(model, test_loader)
+        gt, p, _, _ = compute_scores(model, test_loader) # gt: original label. p: hashed.
         
         # use feature hashing to map back
-        pred.append(p)  # each = num_instances x num_labels
+        pred_avg_meter.update(p[:, label_mapping], 1)
     if gt is None:
         raise Exception("You must have at least one model.")
     else:
-        pred = np.stack(pred)  # R x num_ins x num_lab
-        scores = pred.mean(axis = 0)
-        d = evaluate_scores(gt, scores, model_cfg)
-    
-    # load dataset
+        # TODO: Sum of avg is larger than 1
+        d = evaluate_scores(gt, pred_avg_meter.avg, model_cfg)
+        logging.info(pprint.pformat(d))
     
     # load ground truth
     

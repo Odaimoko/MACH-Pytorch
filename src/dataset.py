@@ -31,9 +31,7 @@ class XCDataset(Dataset):
         self.dest_labels = model_cfg['b']
         
         # load hash results
-        record_dir = "record"
-        label_path = os.path.join(record_dir, "_".join(
-            [self.name, str(self.ori_labels), str(self.dest_labels), str(model_cfg['r'])]))  # Bibtex_159_100_32
+        record_dir = data_cfg["record_dir"]
         feat_path = os.path.join(record_dir, "_".join(
             [self.name, str(self.ori_dim), str(self.dest_dim)]))  # Bibtex_1836_200
         # _, self.label_mapping, _ = get_label_hash(label_path, rep)
