@@ -36,6 +36,22 @@ def log_time(*text, record = None):
 
 
 # ─── TRAINING AND EVALUATION ────────────────────────────────────────────────────
+def get_model_dir(data_cfg, model_cfg, rep):
+    return os.path.join(model_cfg["model_dir"], data_cfg["name"], "_".join([
+        "B", str(model_cfg["b"]), "R", str(model_cfg["r"]), "feat", str(model_cfg["dest_dim"]),
+        "hidden", str(model_cfg['hidden']),
+        "rep", "%2d" % rep
+    ]))
+
+
+def get_mapped_labels(y, label_mapping, b):
+    if y.is_sparse:
+        nz = y.coalesce().indices()  # get indices of nonzero entries
+    else:
+        nz = y.nonzero().T
+    nz[1, :] = label_mapping[nz[1, :]]
+    y = torch.sparse_coo_tensor(nz, torch.ones(nz.shape[1]), size = (y.shape[0], b)).to_dense().clamp_max(1)
+    return y
 
 
 class AverageMeter(object):
@@ -57,7 +73,7 @@ class AverageMeter(object):
         self.avg = self.sum / self.count if self.count != 0 else 0
 
 
-def compute_scores(model, loader):
+def compute_scores(model, loader, label_mapping = None, b = None):
     """
         Get all scores. For the sake of inverse propensity, we need to first collect all labels.
         TODO: -  of course we can compute it in advance
@@ -66,6 +82,7 @@ def compute_scores(model, loader):
     :return: gt & pred: num_instances x num_labels. loss: scalar
     :return:
     """
+    
     cuda = torch.cuda.is_available()
     if cuda and not model.is_cuda():
         model = model.cuda()
@@ -77,7 +94,8 @@ def compute_scores(model, loader):
     for i, data in enumerate(loader):
         X, y = data
         X = X.to_dense().squeeze()
-        y = y.to_dense().squeeze()
+        if label_mapping is not None:
+            y = get_mapped_labels(y, label_mapping, b)
         if cuda:
             X = X.cuda()
             y = y.cuda()
@@ -95,38 +113,48 @@ def compute_scores(model, loader):
     return gt, scores, loss_meter.avg, mAP
 
 
-def compute_scores_all(models: List, loader):
-    pass
-
-
-def evaluate_single(model: torch.nn.Module, loader, model_cfg):
-    """
-        Return quite a few measurement scores, only for a single repetition
-    """
-    # p@k, psp@k, ndcg, psndcg, loss, map
-    gt, pred, loss, mAP = compute_scores(model, loader)
+def evaluate_scores(gt, scores, model_cfg):
     inv_propen = xc_metrics.compute_inv_propesity(gt, model_cfg["ps_A"], model_cfg["ps_B"])
     
     acc = xc_metrics.Metrics(true_labels = gt, inv_psp = inv_propen,
                              remove_invalid = False)
-    d = {k: {} for k in model_cfg["at_k"]}
-    for k in d:
-        prec, ndcg, PSprec, PSnDCG = acc.eval(pred, k)
-        d[k] = {
-            "prec": prec,
-            "ndcg": ndcg,
-            "psp": PSprec,
-            "psn": PSnDCG
-        }
-    
+    prec, ndcg, PSprec, PSnDCG = acc.eval(scores, model_cfg["at_k"])
+    d = {
+        "prec": prec,
+        "ndcg": ndcg,
+        "psp": PSprec,
+        "psn": PSnDCG
+    }
+    return d
+
+
+def evaluate_single(model: torch.nn.Module, loader, model_cfg, label_mapping):
+    """
+        Return quite a few measurement scores, only for a single repetition
+    """
+    # p@k, psp@k, ndcg, psndcg, loss, map
+    gt, pred, loss, mAP = compute_scores(model, loader, label_mapping, model_cfg["b"])
+    d = evaluate_scores(gt, pred, model_cfg)
     return loss, d, mAP
 
 
-def evaluate_all(models: List, loader):
+def evaluate_all(models: List, loader, model_cfg):
     """
-        Use all models and average their results
+        Use all models and average their results.
+        For now, sequentially run.
     """
-    pass
+    pred = []
+    gt = None
+    for m in models:
+        gt, p, _, _ = compute_scores(m, loader)
+        pred.append(p)  # each = num_instances x num_labels
+    if gt is None:
+        raise Exception("You must have at least one model.")
+    else:
+        pred = np.stack(pred)  # R x num_ins x num_lab
+        scores = pred.mean(axis = 0)
+        d = evaluate_scores(gt, scores, model_cfg)
+        return d
 
 
 # ─── PREPROCESS ─────────────────────────────────────────────────────────────────
@@ -205,6 +233,16 @@ def get_loader(data_cfg, model_cfg, rep):
         test_set, batch_size = model_cfg['batch_size'])
     
     return train_loader, val_loader, test_loader
+
+
+def get_label_hash(dir_path, r):
+    """
+        load label mapping
+        return: counts, mapping, inv_mapping
+    """
+    
+    name = ["counts", "mapping", "inv_mapping"]
+    return [np.load(os.path.join(dir_path, "_".join([n, str(r)]) + ".npy")) for n in name]
 
 
 def mkdir(path):

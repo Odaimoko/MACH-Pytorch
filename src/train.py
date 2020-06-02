@@ -1,10 +1,13 @@
 from argparse import ArgumentParser
-from mach_utils import get_config, create_record_dir, mkdir, get_loader, evaluate_single
+from mach_utils import get_config, create_record_dir, mkdir, get_loader, evaluate_single, get_model_dir, get_label_hash, \
+    get_mapped_labels
 import os
 from fc_network import FCNetwork
 import torch
 import tqdm
 import pprint
+import logging
+from dataset import XCDataset
 
 
 def get_args():
@@ -23,19 +26,24 @@ def train(data_cfg, model_cfg, rep, gpus, train_loader, val_loader):
         Train one division
     """
     cuda = torch.cuda.is_available()
+    name = data_cfg['name']
+    ori_dim = data_cfg['ori_dim']
     dest_dim = model_cfg['dest_dim']
     b = model_cfg['b']
     R = model_cfg['r']
-    model_dir = os.path.join("models", "_".join([
-        data_cfg["name"], str(b), str(R), str(dest_dim), str(rep)
-    ]))  # each repetition has its own dir
+    model_dir = get_model_dir(data_cfg, model_cfg, rep)  # each repetition has its own dir
     mkdir(model_dir)
-    latest_param = os.path.join(model_dir, "final_ckpt.pkl")
-    best_param = os.path.join(model_dir, "best_ckpt.pkl")
+    latest_param = os.path.join(model_dir, model_cfg["latest_file"])
+    best_score = -float('inf')
+    best_param = os.path.join(model_dir, model_cfg["best_file"])
+    
+    # logger
+    log_file = "log.log"
+    logging.basicConfig(filename = os.path.join(model_dir, log_file), level = logging.INFO,
+                        format = '%(asctime)s %(levelname)-8s %(message)s', datefmt = '%Y-%m-%d %H:%M:%S')
     # build model and optimizers
     
-    layers = [dest_dim] + \
-             model_cfg['hidden'] + [b]
+    layers = [dest_dim] + model_cfg['hidden'] + [b]
     model = FCNetwork(layers)
     if cuda:
         model = torch.nn.DataParallel(model, device_ids = gpus).cuda()
@@ -52,18 +60,25 @@ def train(data_cfg, model_cfg, rep, gpus, train_loader, val_loader):
         opt.load_state_dict(meta_info['opt'])
         lr_sch.load_state_dict(meta_info['lr_sch'])
         begin = meta_info['epoch']
+        best_score = meta_info["best_score"]
     end = model_cfg['end_epoch']
     # load mapping
+    ori_labels = data_cfg['num_labels']
     
+    record_dir = "record"
+    label_path = os.path.join(record_dir, "_".join(
+        [name, str(ori_labels), str(b), str(R)]))  # Bibtex_159_100_32
+    _, label_mapping, _ = get_label_hash(label_path, rep)
+    label_mapping = torch.from_numpy(label_mapping)
     # train
-    for ep in range(begin, end):
+    for ep in tqdm.tqdm(range(begin, end)):
         model.train()
-        for i, sample in enumerate(train_loader):
+        for sample in train_loader:
             X, y = sample
             # TODO: Check if it is better to unfold the neural network manually using sparse vectors,
             #  or just make vectors dense
-            X = X.to_dense().squeeze()
-            y = y.to_dense().squeeze()
+            X = X.to_dense()
+            y = get_mapped_labels(y, label_mapping, b)
             if cuda:
                 X = X.cuda()
                 y = y.cuda()
@@ -73,12 +88,45 @@ def train(data_cfg, model_cfg, rep, gpus, train_loader, val_loader):
             loss.backward()
             opt.step()
             lr_sch.step(ep)
-            # print(loss)
         # evaluate on val set
-        print("EVALUATION ON VAL SET")
-        l, d, m = evaluate_single(model, val_loader, model_cfg)
-        pprint.pprint(d)
-        print("Loss: %.3f, mAP: %.3f" % (l, m))
+        
+        logging.info("-----------------")
+        logging.info("Epoch %d" % (ep))
+        logging.info("EVALUATION ON TRAIN SET")
+        loss, train_d, mAP = evaluate_single(model, train_loader, model_cfg, label_mapping)
+        logging.info(pprint.pformat(train_d))
+        logging.info("Loss ON TRAIN SET: %.3f, mAP: %.3f" % (loss, mAP))
+        
+        logging.info("EVALUATION ON VAL SET")
+        l, val_d, m = evaluate_single(model, val_loader, model_cfg, label_mapping)
+        logging.info(pprint.pformat(val_d))
+        logging.info("Loss ON VAL SET: %.3f, mAP: %.3f" % (l, m))
+        logging.info("-----------------")
+        
+        if best_score < m:
+            best_score = m
+            is_best = True
+            logging.warning("FOUND A NEW RECORD! {:.3f}".format(m))
+        else:
+            is_best = False
+        # might be cuda, might not be cuda, please make sure it is consistent
+        ckpt = {
+            "opt": opt.state_dict(),
+            "lr_sch": lr_sch.state_dict(),
+            "epoch": ep,
+            "val_map": m,
+            "model": model.state_dict(),
+            "best_score": best_score,  # best score till now
+            "metrics": val_d,
+        }
+        
+        # filename = os.path.join(model_dir,
+        #                         "ep-%2d-map-%.3f-hidden-%s.ckpt" % (ep, m, str(model_cfg['hidden'])))
+        
+        # torch.save(ckpt, filename)
+        torch.save(ckpt, latest_param)
+        if is_best:
+            torch.save(ckpt, best_param)
 
 
 if __name__ == "__main__":
@@ -88,6 +136,19 @@ if __name__ == "__main__":
     create_record_dir(data_cfg)
     # load dataset
     gpus = [int(i) for i in a.gpus.split(",")]
-    train_loader, val_loader, test_loader = get_loader(
-        data_cfg, model_cfg, a.rep)
+    # train_loader, val_loader, test_loader = get_loader(
+    #     data_cfg, model_cfg, a.rep)
+    
+    name = data_cfg['name']
+    data_dir = os.path.join("data", name)
+    train_file = name + "_" + "train.txt"
+    test_file = name + "_" + "test.txt"
+    train_file = os.path.join(data_dir, train_file)
+    test_file = os.path.join(data_dir, test_file)
+    train_set = XCDataset(train_file, a.rep, data_cfg, model_cfg, 'tr')
+    val_set = XCDataset(train_file, a.rep, data_cfg, model_cfg, 'val')
+    train_loader = torch.utils.data.DataLoader(
+        train_set, batch_size = model_cfg['batch_size'])
+    val_loader = torch.utils.data.DataLoader(
+        val_set, batch_size = model_cfg['batch_size'])
     train(data_cfg, model_cfg, a.rep, gpus, train_loader, val_loader)
