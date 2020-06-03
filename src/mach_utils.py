@@ -84,7 +84,7 @@ def compute_scores(model, loader, label_mapping = None, b = None):
     """
     
     cuda = torch.cuda.is_available()
-    if cuda and not model.is_cuda():
+    if cuda and not isinstance(model,torch.nn.DataParallel) and not model.is_cuda():
         model = model.cuda()
     gt = []
     scores = []
