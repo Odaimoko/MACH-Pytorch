@@ -5,8 +5,10 @@ import os
 
 def get_args():
     p = ArgumentParser()
-    p.add_argument("--model", dest="model", type=str, required=True)
-    p.add_argument("--dataset", dest="dataset", type=str, required=True)
+    p.add_argument("--model", dest = "model", type = str, required = True,
+                   help="Path to the model config yaml file.")
+    p.add_argument("--dataset", dest = "dataset", type = str, required = True,
+                   help="Path to the data config yaml file.")
     return p.parse_args()
 
 

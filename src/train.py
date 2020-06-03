@@ -5,7 +5,6 @@ import os
 from fc_network import FCNetwork
 import torch
 import tqdm
-import pprint
 import logging
 from dataset import XCDataset
 
@@ -13,11 +12,13 @@ from dataset import XCDataset
 def get_args():
     p = ArgumentParser()
     p.add_argument("--rep", dest = "rep", type = int, default = 0,
-                   help = "Which reptition to train")
-    p.add_argument("--model", dest = "model", type = str, required = True)
-    p.add_argument("--dataset", dest = "dataset", type = str, required = True)
+                   help = "Which reptition to train. Default 0.")
+    p.add_argument("--model", dest = "model", type = str, required = True,
+                   help="Path to the model config yaml file.")
+    p.add_argument("--dataset", dest = "dataset", type = str, required = True,
+                   help="Path to the data config yaml file.")
     p.add_argument("--gpus", dest = "gpus", type = str, required = False, default = "0",
-                   help = "A string that specifies which GPU you want to use, split by comma. Eg 0,1")
+                   help = "A string that specifies which GPU you want to use, split by comma. Eg 0,1. Default 0.")
     return p.parse_args()
 
 
@@ -125,10 +126,6 @@ def train(data_cfg, model_cfg, rep, gpus, train_loader, val_loader):
             "metrics": val_d,
         }
         
-        # filename = os.path.join(model_dir,
-        #                         "ep-%2d-map-%.3f-hidden-%s.ckpt" % (ep, m, str(model_cfg['hidden'])))
-        
-        # torch.save(ckpt, filename)
         torch.save(ckpt, latest_param)
         if is_best:
             torch.save(ckpt, best_param)

@@ -2,15 +2,15 @@ from mach_utils import *
 import logging
 from argparse import ArgumentParser
 from fc_network import FCNetwork
-import pprint
 import tqdm
-
+from dataset import XCDataset
 
 def get_args():
     p = ArgumentParser()
-    p.add_argument("--model", dest = "model", type = str, required = True)
-    p.add_argument("--dataset", dest = "dataset", type = str, required = True)
-    
+    p.add_argument("--model", dest = "model", type = str, required = True,
+                   help = "Path to the model config yaml file.")
+    p.add_argument("--dataset", dest = "dataset", type = str, required = True,
+                   help = "Path to the data config yaml file.")
     p.add_argument("--gpus", dest = "gpus", type = str, required = False, default = "0",
                    help = "A string that specifies which GPU you want to use, split by comma. Eg 0,1")
     return p.parse_args()

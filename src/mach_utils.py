@@ -6,7 +6,6 @@ import time
 from functools import wraps
 import numpy as np
 from sklearn.utils import murmurhash3_32 as mmh3
-from dataset import XCDataset
 import yaml
 import torch
 import torch.nn.functional as F
@@ -41,7 +40,7 @@ def get_model_dir(data_cfg, model_cfg, rep):
     return os.path.join(model_cfg["model_dir"], data_cfg["name"], "_".join([
         "B", str(model_cfg["b"]), "R", str(model_cfg["r"]), "feat", str(model_cfg["dest_dim"]),
         "hidden", str(model_cfg['hidden']),
-        "rep", "%2d" % rep
+        "rep", "%02d" % rep
     ]))
 
 

@@ -1,2 +1,7 @@
 pyyaml
 scipy
+numpy
+torch
+torchnet
+sklearn
+tqdm

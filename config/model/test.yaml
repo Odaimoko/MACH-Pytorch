@@ -1,29 +1,29 @@
 #BASIC
-dest_dim: 1000
-b: 100
-r: 32
-ps_A: 0.55
-ps_B: 1.5
+dest_dim: 1000 # target dimension of feature hash
+b: 100 # number of buckets
+r: 32 # number of hash functions
+ps_A: 0.55 # used in propensity score
+ps_B: 1.5 # used in propensity score
 # ─── NETWORK ────────────────────────────────────────────────────────────────────
 
-hidden:
+hidden: # hidden layer dimensions
   - 32
   - 32
 
 # ─── TRAINING ───────────────────────────────────────────────────────────────────
 best_file: "best_ckpt.pkl"
 latest_file: "final_ckpt.pkl"
-batch_size: 32
+batch_size: 32 # training and testing batch size
 begin_epoch: 0
 end_epoch: 60
-lr: .001
-lr_step:
+lr: .001 # learning rate
+lr_step: # lr reduction at these epochs
   - 30
-lr_factor: .1
+lr_factor: .1 # lr reduction rate
 weight_decay: .99
 # ─── EVALUATION ─────────────────────────────────────────────────────────────────
-pretrained:
-at_k: 5
-model_dir: "models"
+pretrained: # pretrained model path (single model only)
+at_k: 5 # evaluation
+model_dir: "models" # model root directory
 # ─── DEBUG ──────────────────────────────────────────────────────────────────────
 

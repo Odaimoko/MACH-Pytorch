@@ -1,5 +1,5 @@
-name: "bibtex"
-num_labels: 159
-ori_dim: 1836
-train_size: 4380
-record_dir: "record"
+name: "bibtex" # dataset name, and data directory name
+num_labels: 159 # number of original labels
+ori_dim: 1836 # feature dimension before feature hashing
+train_size: 4380 #  number of training samples, the rest are in validation set
+record_dir: "record" # preprocess results directory
