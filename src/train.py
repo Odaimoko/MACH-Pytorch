@@ -1,6 +1,6 @@
 from argparse import ArgumentParser
-from mach_utils import get_config, create_record_dir, mkdir, get_loader, evaluate_single, get_model_dir, get_label_hash, \
-    get_mapped_labels
+from mach_utils import get_config, create_record_dir, mkdir, evaluate_single, get_model_dir, get_label_hash, \
+    get_mapped_labels,log_eval_results
 import os
 from fc_network import FCNetwork
 import torch
@@ -38,9 +38,14 @@ def train(data_cfg, model_cfg, rep, gpus, train_loader, val_loader):
     best_param = os.path.join(model_dir, model_cfg["best_file"])
     
     # logger
-    log_file = "log.log"
-    logging.basicConfig(filename = os.path.join(model_dir, log_file), level = logging.INFO,
-                        format = '%(asctime)s %(levelname)-8s %(message)s', datefmt = '%Y-%m-%d %H:%M:%S')
+    log_file = "train.log"
+    # print to log file as well as stdout
+    logging.basicConfig(level = logging.INFO,
+                        format = '%(asctime)s %(levelname)-8s %(message)s', datefmt = '%Y-%m-%d %H:%M:%S',
+                        handlers = [
+                            logging.FileHandler(os.path.join(model_dir, log_file)),
+                            logging.StreamHandler()
+                        ])
     # build model and optimizers
     
     layers = [dest_dim] + model_cfg['hidden'] + [b]
@@ -94,12 +99,12 @@ def train(data_cfg, model_cfg, rep, gpus, train_loader, val_loader):
         logging.info("Epoch %d" % (ep))
         logging.info("EVALUATION ON TRAIN SET")
         loss, train_d, mAP = evaluate_single(model, train_loader, model_cfg, label_mapping)
-        logging.info(pprint.pformat(train_d))
+        log_eval_results(train_d)
         logging.info("Loss ON TRAIN SET: %.3f, mAP: %.3f" % (loss, mAP))
         
         logging.info("EVALUATION ON VAL SET")
         l, val_d, m = evaluate_single(model, val_loader, model_cfg, label_mapping)
-        logging.info(pprint.pformat(val_d))
+        log_eval_results(val_d)
         logging.info("Loss ON VAL SET: %.3f, mAP: %.3f" % (l, m))
         logging.info("-----------------")
         
@@ -147,6 +152,5 @@ if __name__ == "__main__":
         train_set, batch_size = model_cfg['batch_size'])
     val_loader = torch.utils.data.DataLoader(
         val_set, batch_size = model_cfg['batch_size'])
-    
     
     train(data_cfg, model_cfg, a.rep, gpus, train_loader, val_loader)

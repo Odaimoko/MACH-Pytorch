@@ -2,8 +2,10 @@ from mach_utils import *
 import logging
 from argparse import ArgumentParser
 from fc_network import FCNetwork
-import  pprint
-import  tqdm
+import pprint
+import tqdm
+
+
 def get_args():
     p = ArgumentParser()
     p.add_argument("--model", dest = "model", type = str, required = True)
@@ -38,8 +40,12 @@ if __name__ == "__main__":
     model_cfg = get_config(a.model)
     log_file = "eval.log"
     model_dir = os.path.join(model_cfg["model_dir"], data_cfg["name"])
-    logging.basicConfig(filename = os.path.join(model_dir, log_file), level = logging.INFO,
-                        format = '%(asctime)s %(levelname)-8s %(message)s', datefmt = '%Y-%m-%d %H:%M:%S')
+    logging.basicConfig(level = logging.INFO,
+                        format = '%(asctime)s %(levelname)-8s %(message)s', datefmt = '%Y-%m-%d %H:%M:%S',
+                        handlers = [
+                            logging.FileHandler(os.path.join(model_dir, log_file)),
+                            logging.StreamHandler()
+                        ])
     
     # load models
     cuda = torch.cuda.is_available()
@@ -54,12 +60,14 @@ if __name__ == "__main__":
     # load dataset
     test_file = os.path.join(data_dir, name + "_" + "test.txt")
     test_set = XCDataset(test_file, 0, data_cfg, model_cfg, 'te')
-    test_loader = torch.utils.data.DataLoader(
-        test_set, batch_size = model_cfg['batch_size'])
     
     pred_avg_meter = AverageMeter()
     gt = None
     for r in tqdm.tqdm(range(R)):
+        # load ground truth
+        test_set.change_feat_map(r)
+        test_loader = torch.utils.data.DataLoader(
+            test_set, batch_size = model_cfg['batch_size'])
         model_dir = get_model_dir(data_cfg, model_cfg, r)
         best_param = os.path.join(model_dir, model_cfg["best_file"])
         
@@ -80,19 +88,14 @@ if __name__ == "__main__":
             model.load_state_dict(meta_info['model'])
         else:
             raise FileNotFoundError("Model {} does not exist.".format(preload_path))
-        gt, p, _, _ = compute_scores(model, test_loader) # gt: original label. p: hashed.
+        # predict
+        gt, p, _, _ = compute_scores(model, test_loader)  # gt: original label. p: hashed.
         
         # use feature hashing to map back
         pred_avg_meter.update(p[:, label_mapping], 1)
     if gt is None:
         raise Exception("You must have at least one model.")
     else:
-        # TODO: Sum of avg is larger than 1
+        #  Sum of avg is larger than 1 -> that is the feature, no problem
         d = evaluate_scores(gt, pred_avg_meter.avg, model_cfg)
-        logging.info(pprint.pformat(d))
-    
-    # load ground truth
-    
-    # predict
-    
-    # evaluate using PyXCLib
+        log_eval_results(d)

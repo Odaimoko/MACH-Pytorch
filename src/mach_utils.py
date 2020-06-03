@@ -13,6 +13,7 @@ import torch.nn.functional as F
 from xclib.evaluation import xc_metrics
 import scipy
 from torchnet import meter
+import logging
 
 
 # ─── DECORATORS ─────────────────────────────────────────────────────────────────
@@ -136,6 +137,24 @@ def evaluate_scores(gt, scores, model_cfg):
     return d
 
 
+def format_evaluation(d: Dict):
+    if len(d) == 0:
+        print("Empty Evaluation Dictionary.")
+    
+    s = ""
+    for k in d.keys():
+        s += k + '\t' + '\t'.join([str("%.2f" % (score * 100)) for score in d[k]]) + '\n'
+    at_k = len(d[k])
+    s = '\t\t' + '\t\t'.join(['@%d' % (i + 1) for i in range(at_k)]) + '\n' + s
+    return s
+
+
+def log_eval_results(d):
+    s = format_evaluation(d)
+    for l in s.split('\n'):
+        logging.info(l)
+
+
 def evaluate_single(model: torch.nn.Module, loader, model_cfg, label_mapping):
     """
         Return quite a few measurement scores, only for a single repetition
@@ -218,29 +237,6 @@ def get_config(path) -> Dict:
             return yaml.safe_load(f)
     else:
         raise FileNotFoundError(path)
-
-
-def get_loader(data_cfg, model_cfg, rep):
-    """
-        Return train, val and test loader 
-    """
-    name = data_cfg['name']
-    data_dir = os.path.join("data", name)
-    train_file = name + "_" + "train.txt"
-    test_file = name + "_" + "test.txt"
-    train_file = os.path.join(data_dir, train_file)
-    test_file = os.path.join(data_dir, test_file)
-    train_set = XCDataset(train_file, rep, data_cfg, model_cfg, 'tr')
-    val_set = XCDataset(train_file, rep, data_cfg, model_cfg, 'val')
-    train_loader = torch.utils.data.DataLoader(
-        train_set, batch_size = model_cfg['batch_size'])
-    val_loader = torch.utils.data.DataLoader(
-        val_set, batch_size = model_cfg['batch_size'])
-    test_set = XCDataset(test_file, rep, data_cfg, model_cfg, 'te')
-    test_loader = torch.utils.data.DataLoader(
-        test_set, batch_size = model_cfg['batch_size'])
-    
-    return train_loader, val_loader, test_loader
 
 
 def get_label_hash(dir_path, r):
