@@ -23,13 +23,13 @@ def log_time(*text, record = None):
         @wraps(func)
         def impl(*args, **kw):
             start = time.perf_counter()
-            func(*args, **kw)
+            res=func(*args, **kw)
             end = time.perf_counter()
             r = print if not record else record  # 如果没有record，默认print
             t = (func.__name__,) if not text else text
             # print(r, t)
-            r(*t, "Time elapsed: %.3f" % (end - start))
-        
+            r(" ".join(t) + " " + "Time elapsed: %.3f s." % (end - start))
+            return res
         return impl
     
     return real_deco
@@ -73,6 +73,7 @@ class AverageMeter(object):
         self.avg = self.sum / self.count if self.count != 0 else 0
 
 
+@log_time( record = logging.info)
 def compute_scores(model, loader, label_mapping = None, b = None):
     """
         Get all scores. For the sake of inverse propensity, we need to first collect all labels.
@@ -84,7 +85,7 @@ def compute_scores(model, loader, label_mapping = None, b = None):
     """
     
     cuda = torch.cuda.is_available()
-    if cuda and not isinstance(model,torch.nn.DataParallel) and not model.is_cuda():
+    if cuda and not isinstance(model, torch.nn.DataParallel) and not model.is_cuda():
         model = model.cuda()
     gt = []
     scores = []

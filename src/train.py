@@ -1,12 +1,13 @@
 from argparse import ArgumentParser
 from mach_utils import get_config, create_record_dir, mkdir, evaluate_single, get_model_dir, get_label_hash, \
-    get_mapped_labels,log_eval_results
+    get_mapped_labels, log_eval_results
 import os
 from fc_network import FCNetwork
 import torch
 import tqdm
 import logging
 from dataset import XCDataset
+import time
 
 
 def get_args():
@@ -14,9 +15,9 @@ def get_args():
     p.add_argument("--rep", dest = "rep", type = int, default = 0,
                    help = "Which reptition to train. Default 0.")
     p.add_argument("--model", dest = "model", type = str, required = True,
-                   help="Path to the model config yaml file.")
+                   help = "Path to the model config yaml file.")
     p.add_argument("--dataset", dest = "dataset", type = str, required = True,
-                   help="Path to the data config yaml file.")
+                   help = "Path to the data config yaml file.")
     p.add_argument("--gpus", dest = "gpus", type = str, required = False, default = "0",
                    help = "A string that specifies which GPU you want to use, split by comma. Eg 0,1. Default 0.")
     return p.parse_args()
@@ -80,6 +81,8 @@ def train(data_cfg, model_cfg, rep, gpus, train_loader, val_loader):
     # train
     for ep in tqdm.tqdm(range(begin, end)):
         model.train()
+        start = time.perf_counter()
+        
         for sample in train_loader:
             X, y = sample
             # TODO: Check if it is better to unfold the neural network manually using sparse vectors,
@@ -95,8 +98,11 @@ def train(data_cfg, model_cfg, rep, gpus, train_loader, val_loader):
             loss.backward()
             opt.step()
             lr_sch.step(ep)
+        end = time.perf_counter()
         
         logging.info("-----------------")
+        logging.info("Training Time Elapsed: %.3f s." % (end - start))
+        
         logging.info("Epoch %d" % (ep))
         logging.info("EVALUATION ON TRAIN SET")
         loss, train_d, mAP = evaluate_single(model, train_loader, model_cfg, label_mapping)
@@ -107,7 +113,6 @@ def train(data_cfg, model_cfg, rep, gpus, train_loader, val_loader):
         l, val_d, m = evaluate_single(model, val_loader, model_cfg, label_mapping)
         log_eval_results(val_d)
         logging.info("Loss ON VAL SET: %.3f, mAP: %.3f" % (l, m))
-        logging.info("-----------------")
         
         if best_score < m:
             best_score = m
@@ -116,6 +121,8 @@ def train(data_cfg, model_cfg, rep, gpus, train_loader, val_loader):
         else:
             is_best = False
         # might be cuda, might not be cuda, please make sure it is consistent
+        logging.info("-----------------")
+        
         ckpt = {
             "opt": opt.state_dict(),
             "lr_sch": lr_sch.state_dict(),
