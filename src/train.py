@@ -103,11 +103,11 @@ def train(data_cfg, model_cfg, rep, gpus, train_loader, val_loader):
         logging.info("-----------------")
         logging.info("Training Time Elapsed: %.3f s." % (end - start))
         
-        logging.info("Epoch %d" % (ep))
-        logging.info("EVALUATION ON TRAIN SET")
-        loss, train_d, mAP = evaluate_single(model, train_loader, model_cfg, label_mapping)
-        log_eval_results(train_d)
-        logging.info("Loss ON TRAIN SET: %.3f, mAP: %.3f" % (loss, mAP))
+        # logging.info("Epoch %d" % (ep))
+        # logging.info("EVALUATION ON TRAIN SET")
+        # loss, train_d, mAP = evaluate_single(model, train_loader, model_cfg, label_mapping)
+        # log_eval_results(train_d)
+        # logging.info("Loss ON TRAIN SET: %.3f, mAP: %.3f" % (loss, mAP))
         
         logging.info("EVALUATION ON VAL SET")
         l, val_d, m = evaluate_single(model, val_loader, model_cfg, label_mapping)
