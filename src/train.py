@@ -133,9 +133,13 @@ def train(data_cfg, model_cfg, rep, gpus, train_loader, val_loader):
             "metrics": val_d,
         }
         
+        start = time.perf_counter()
+        logging.info("Saving models...")
         torch.save(ckpt, latest_param)
         if is_best:
             torch.save(ckpt, best_param)
+        end = time.perf_counter()
+        logging.info("Model Saved. Time Elapsed: %.3f s." % (end - start))
 
 
 if __name__ == "__main__":
