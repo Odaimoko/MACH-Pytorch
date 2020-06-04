@@ -8,7 +8,7 @@ import tqdm
 import logging
 from dataset import XCDataset
 import time
-
+import threading
 
 def get_args():
     p = ArgumentParser()
@@ -78,6 +78,7 @@ def train(data_cfg, model_cfg, rep, gpus, train_loader, val_loader):
     _, label_mapping, _ = get_label_hash(label_path, rep)
     label_mapping = torch.from_numpy(label_mapping)
     
+    saving_threads = []
     # train
     for ep in tqdm.tqdm(range(begin, end)):
         model.train()
@@ -133,14 +134,21 @@ def train(data_cfg, model_cfg, rep, gpus, train_loader, val_loader):
             "metrics": val_d,
         }
         
-        start = time.perf_counter()
+        # start = time.perf_counter()
+        t=threading.Thread(target=torch.save,args=(ckpt,latest_param))
         logging.info("Saving models...")
-        torch.save(ckpt, latest_param)
+        t.start()
+        saving_threads.append(t)
+        # torch.save(ckpt, latest_param)
         if is_best:
-            torch.save(ckpt, best_param)
-        end = time.perf_counter()
-        logging.info("Model Saved. Time Elapsed: %.3f s." % (end - start))
-
+            # torch.save(ckpt, best_param)
+            t=threading.Thread(target=torch.save,args=(ckpt,best_param))
+            t.start()
+            saving_threads.append(t)
+        # end = time.perf_counter()
+        # logging.info("Model Saved. Time Elapsed: %.3f s." % (end - start))
+    for t in saving_threads:
+        t.join()
 
 if __name__ == "__main__":
     a = get_args()
