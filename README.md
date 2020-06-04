@@ -19,6 +19,8 @@ In short, MACH use hash functions to map `L` labels into `B` buckets. In total t
 - [x] Debug Evaluation in xclib.
 - [x] Test on GPU.
 - [ ] Test on large datasets.
+- [ ] Decide A and B for each dataset.
+- [ ] Tune hyperparameters.
 
 ## Currently supporting ...
 
