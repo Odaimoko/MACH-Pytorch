@@ -43,7 +43,7 @@ class XCDataset(Dataset):
             with open(txt_path, 'r') as f:
                 n = -1
                 for line in f:
-                    if not line:
+                    if not line or ',' not in line:# in Delicious, there is one line which does not have labels
                         continue
                     n += 1
                     if type == 'tr':
@@ -59,6 +59,7 @@ class XCDataset(Dataset):
                     y = torch.sparse_coo_tensor([labels], torch.ones(len(labels)),
                                                 size = (self.ori_labels,))
                     self.meta_info.append([y, idx_values_pair])
+
         else:
             print("Dataset %s does not exist." % (txt_path))
     

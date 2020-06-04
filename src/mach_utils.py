@@ -94,7 +94,7 @@ def compute_scores(model, loader, label_mapping = None, b = None):
     map_meter = meter.mAPMeter()
     for i, data in enumerate(loader):
         X, y = data
-        X = X.to_dense().squeeze()
+        X = X.to_dense()
         if label_mapping is not None:
             y = get_mapped_labels(y, label_mapping, b)
         if cuda:
