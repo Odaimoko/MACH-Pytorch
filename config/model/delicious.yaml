@@ -1,6 +1,6 @@
 #BASIC
 dest_dim: 500 # target dimension of feature hash
-b: 100 # number of buckets
+b: 200 # number of buckets
 r: 32 # number of hash functions
 ps_A: 0.55 # used in propensity score
 ps_B: 1.5 # used in propensity score
