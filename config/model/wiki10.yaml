@@ -1,19 +1,19 @@
 #BASIC
-dest_dim: 3000 # target dimension of feature hash
-b: 10000 # number of buckets
+dest_dim: 70000 # target dimension of feature hash, 101938 in paper
+b: 1000 # number of buckets, 1000~2000 in paper
 r: 32 # number of hash functions
 ps_A: 0.55 # used in propensity score
 ps_B: 1.5 # used in propensity score
 # ─── NETWORK ────────────────────────────────────────────────────────────────────
 
 hidden: # hidden layer dimensions
-  - 64
-  - 64
+  - 500
+  - 500
 
 # ─── TRAINING ───────────────────────────────────────────────────────────────────
 best_file: "best_ckpt.pkl"
 latest_file: "final_ckpt.pkl"
-batch_size: 512 # training and testing batch size
+batch_size: 128 # training and testing batch size
 begin_epoch: 0
 end_epoch: 60
 lr: .001 # learning rate
