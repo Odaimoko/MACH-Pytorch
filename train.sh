@@ -5,7 +5,7 @@ for ((i = 0; i < 8; i++)); do
         echo $part
         export CUDA_VISIBLE_DEVICES=$j
         python -W ignore::Warning src/train.py --rep $part --model config/model/wiki10.yaml \
-            --dataset config/dataset/wiki10.yaml --gpus $j &
+            --dataset config/dataset/wiki10.yaml --gpus 0 &
     done
     wait
 
