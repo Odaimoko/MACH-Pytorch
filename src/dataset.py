@@ -27,6 +27,7 @@ class XCDataset(Dataset):
         self.name = data_cfg['name']
         self.ori_dim = data_cfg['ori_dim']
         self.dest_dim = model_cfg['dest_dim']
+        self.use_feature_hash = model_cfg['is_feat_hash']
         self.ori_labels = data_cfg['num_labels']
         self.dest_labels = model_cfg['b']
         self.data_cfg = data_cfg
@@ -43,7 +44,8 @@ class XCDataset(Dataset):
             with open(txt_path, 'r') as f:
                 n = -1
                 for line in f:
-                    if not line or ',' not in line:# in Delicious, there is one line which does not have labels
+                    line = line.strip().split()
+                    if not line or ':'  in line[0]:  # in Delicious, there is one line which does not have labels
                         continue
                     n += 1
                     if type == 'tr':
@@ -52,16 +54,16 @@ class XCDataset(Dataset):
                     if type == 'val':
                         if n < data_cfg['train_size']:
                             continue
-                    line = line.strip().split()
                     labels = [int(i)
                               for i in line[0].split(',')]  # list of label index
                     idx_values_pair = [v.split(":") for v in line[1:]]
                     y = torch.sparse_coo_tensor([labels], torch.ones(len(labels)),
                                                 size = (self.ori_labels,))
                     self.meta_info.append([y, idx_values_pair])
-
+        
         else:
             print("Dataset %s does not exist." % (txt_path))
+        return
     
     def __getitem__(self, i):
         """
@@ -69,7 +71,10 @@ class XCDataset(Dataset):
         """
         y, idx_values_pair = self.meta_info[i]
         idx = [int(i) for i, j in idx_values_pair]
-        mapped_idx = self.feat_mapping[idx]
+        if self.use_feature_hash:
+            mapped_idx = self.feat_mapping[idx]
+        else:
+            mapped_idx = np.array(idx)
         mapped_idx = np.expand_dims(mapped_idx, 0)
         values = torch.tensor([float(j) for i, j in idx_values_pair])
         x = torch.sparse_coo_tensor(mapped_idx, values, size = (self.dest_dim,))

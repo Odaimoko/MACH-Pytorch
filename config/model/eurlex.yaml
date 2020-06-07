@@ -4,6 +4,8 @@ b: 500 # number of buckets
 r: 32 # number of hash functions
 ps_A: 0.55 # used in propensity score
 ps_B: 1.5 # used in propensity score
+is_feat_hash: true
+
 # ─── NETWORK ────────────────────────────────────────────────────────────────────
 
 hidden: # hidden layer dimensions

@@ -73,7 +73,7 @@ class AverageMeter(object):
         self.avg = self.sum / self.count if self.count != 0 else 0
 
 
-@log_time( record = logging.info)
+# @log_time( record = logging.info)
 def compute_scores(model, loader, label_mapping = None, b = None):
     """
         Get all scores. For the sake of inverse propensity, we need to first collect all labels.
