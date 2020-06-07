@@ -127,12 +127,16 @@ def evaluate_scores(gt, scores, model_cfg):
     
     acc = xc_metrics.Metrics(true_labels = gt, inv_psp = inv_propen,
                              remove_invalid = False)
+    map_meter = meter.mAPMeter()
+    
+    map_meter.add(scores,gt.todense())
     prec, ndcg, PSprec, PSnDCG = acc.eval(scores, model_cfg["at_k"])
     d = {
         "prec": prec,
         "ndcg": ndcg,
         "psp": PSprec,
-        "psndcg": PSnDCG
+        "psndcg": PSnDCG,
+        "mAP": [map_meter.value()]
     }
     return d
 
