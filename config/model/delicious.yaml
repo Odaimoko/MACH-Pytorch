@@ -15,7 +15,7 @@ hidden: # hidden layer dimensions
 # ─── TRAINING ───────────────────────────────────────────────────────────────────
 best_file: "best_ckpt.pkl"
 latest_file: "final_ckpt.pkl"
-batch_size: 128 # training and testing batch size
+batch_size: 512 # training and testing batch size
 begin_epoch: 0
 end_epoch: 60
 lr: .001 # learning rate
