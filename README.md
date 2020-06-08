@@ -23,6 +23,7 @@ In short, MACH use hash functions to map `L` labels into `B` buckets. In total t
 - [x] Test on large datasets.
 - [x] Decide A and B for each dataset.[cannot]
 - [ ] Tune hyperparameters.
+    - [ ] tuning tools: visualization, 
 
 ## Currently supporting ...
 

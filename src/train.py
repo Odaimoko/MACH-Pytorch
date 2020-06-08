@@ -100,7 +100,7 @@ def train(data_cfg, model_cfg, rep, gpus, train_loader, val_loader):
             lr_sch.step(ep)
         end = time.perf_counter()
         
-        logging.info("-----------------")
+        logging.info("-----Rep %d, Ep %d-------" % (rep, ep))
         logging.info("Training Time Elapsed: %.3f s." % (end - start))
         
         # logging.info("Epoch %d" % (ep))
@@ -157,7 +157,7 @@ if __name__ == "__main__":
     train_set = XCDataset(train_file, a.rep, data_cfg, model_cfg, 'tr')
     val_set = XCDataset(train_file, a.rep, data_cfg, model_cfg, 'val')
     train_loader = torch.utils.data.DataLoader(
-        train_set, batch_size = model_cfg['batch_size'])
+        train_set, batch_size = model_cfg['batch_size'], shuffle = model_cfg['shuffle'])
     val_loader = torch.utils.data.DataLoader(
         val_set, batch_size = model_cfg['batch_size'])
     

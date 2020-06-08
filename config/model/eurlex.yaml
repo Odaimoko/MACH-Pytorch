@@ -23,6 +23,7 @@ lr_step: # lr reduction at these epochs
   - 30
 lr_factor: .1 # lr reduction rate
 weight_decay: .99
+shuffle: true
 # ─── EVALUATION ─────────────────────────────────────────────────────────────────
 pretrained: # pretrained model path (single model only)
 at_k: 5 # evaluation
