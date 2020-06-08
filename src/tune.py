@@ -57,8 +57,8 @@ if __name__ == "__main__":
         cmds = []
         k = 0
         for r in range(R):
-            cmd = "export CUDA_VISIBLE_DEVICES=%d; "+py+" -W ignore::Warning src/train.py %s --rep %d --gpus 0" % (
-                k, cli_args, r)
+            cmd = "export CUDA_VISIBLE_DEVICES=%d; %s -W ignore::Warning src/train.py %s --rep %d --gpus 0" % (
+                k, py, cli_args, r)
             # cmd="echo %s" %(cli_args)
             k = (k+1) % 4
             cmds.append(cmd)
