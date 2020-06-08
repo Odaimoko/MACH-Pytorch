@@ -35,6 +35,7 @@ def create_config(model_cfg, dir_path):
 
 
 if __name__ == "__main__":
+    py = subprocess.check_output(['which', 'python']).decode().strip()
     a = get_args()
     dataset = os.path.join("config/dataset", a.dataset + ".yaml")
     model = os.path.join("config/model", a.dataset + ".yaml")
@@ -48,7 +49,7 @@ if __name__ == "__main__":
     R = model_cfg['r']
 
     cli_args = "--model %s --dataset %s" % (model, dataset)
-    os.system("/opt/anaconda3/envs/nlu/bin/python  src/preprocess.py " + cli_args)
+    os.system(py+" src/preprocess.py " + cli_args)
     for c in sorted(os.listdir(config_temp)):
         current_model = os.path.join(config_temp, c)
         cli_args = "--model %s --dataset %s" % (current_model, dataset)
@@ -56,7 +57,7 @@ if __name__ == "__main__":
         cmds = []
         k = 0
         for r in range(R):
-            cmd = "export CUDA_VISIBLE_DEVICES=%d; /opt/anaconda3/envs/nlu/bin/python -W ignore::Warning src/train.py %s --rep %d --gpus 0" % (
+            cmd = "export CUDA_VISIBLE_DEVICES=%d; "+py+" -W ignore::Warning src/train.py %s --rep %d --gpus 0" % (
                 k, cli_args, r)
             # cmd="echo %s" %(cli_args)
             k = (k+1) % 4
@@ -66,4 +67,4 @@ if __name__ == "__main__":
             p.imap(os.system, cmds)
             p.close()
             p.join()
-        os.system("/opt/anaconda3/envs/nlu/bin/python  src/evaluate.py " + cli_args)
+        os.system(py+" src/evaluate.py " + cli_args)
