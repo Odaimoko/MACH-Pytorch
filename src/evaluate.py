@@ -60,7 +60,7 @@ if __name__ == "__main__":
     data_dir = os.path.join("data", name)
 
     # load dataset
-    test_file = os.path.join(data_dir, name + "_" + "test.txt")
+    test_file = os.path.join(data_dir, name + "_test.txt")
     test_set = XCDataset(test_file, 0, data_cfg, model_cfg, 'te')
 
     pred_avg_meter = AverageMeter()

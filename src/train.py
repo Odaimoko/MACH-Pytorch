@@ -151,8 +151,9 @@ if __name__ == "__main__":
     gpus = [int(i) for i in a.gpus.split(",")]
     
     name = data_cfg['name']
+    prefix = data_cfg['prefix']
     data_dir = os.path.join("data", name)
-    train_file = name + "_" + "train.txt"
+    train_file = prefix + "_" + "train.txt"
     train_file = os.path.join(data_dir, train_file)
     train_set = XCDataset(train_file, a.rep, data_cfg, model_cfg, 'tr')
     val_set = XCDataset(train_file, a.rep, data_cfg, model_cfg, 'val')
