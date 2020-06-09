@@ -19,7 +19,8 @@ begin_epoch: 0
 end_epoch: 60
 lr: .001 # learning rate
 lr_step: # lr reduction at these epochs
-  - 30
+  - 20
+  - 40
 lr_factor: .1 # lr reduction rate
 weight_decay: .99
 shuffle: true

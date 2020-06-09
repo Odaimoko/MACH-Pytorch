@@ -37,7 +37,7 @@ def log_time(*text, record = None):
 
 # ─── TRAINING AND EVALUATION ────────────────────────────────────────────────────
 def get_model_dir(data_cfg, model_cfg, rep):
-    return os.path.join(model_cfg["model_dir"], data_cfg["name"], "_".join([
+    return os.path.join(model_cfg["model_dir"], data_cfg["prefix"], "_".join([
         "B", str(model_cfg["b"]), "R", str(model_cfg["r"]), "feat", str(model_cfg["dest_dim"]),
         "hidden", str(model_cfg['hidden']),
         "rep", "%02d" % rep

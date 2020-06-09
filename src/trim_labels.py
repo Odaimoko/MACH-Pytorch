@@ -5,9 +5,20 @@ import numpy as np
 import json
 from mach_utils import *
 import yaml
+from argparse import ArgumentParser
+
+
+def get_args():
+    p = ArgumentParser()
+    p.add_argument("--dataset", "-d", dest="dataset", type=str, required=True,
+                   help="Dataset name. Initial should be CAPITAL.")
+    return p.parse_args()
+
+
 if __name__ == "__main__":
     # read in files
-    name = "Eurlex"
+    a = get_args()
+    name = a.dataset
     filepath = 'data/{n1}/ori_{n2}_train.txt'.format(n1=name, n2=name.lower())
     print(filepath)
 
@@ -88,3 +99,18 @@ if __name__ == "__main__":
         data_cfg['train_size'] = int(n*.9)
         with open(yaml_path, 'w') as f:
             yaml.dump(data_cfg, f)
+
+    # config_dir = 'config/model_trim/'+name
+    # mkdir(config_dir)
+    # model = os.path.join(
+    #     'config/model', "{n}.yaml".format(n=name.lower()))  # eurlex.yaml
+    # model_cfg = get_config(model)
+    # b = model_cfg['b']
+    # r = model_cfg['r']
+    # for p, rest in zip(prefixes, rest_labels):
+    #     yaml_path = os.path.join(config_dir, "%s.yaml" % (p))
+    #     # if labels are less than b, we only need 1 repetition and no need to map labels?
+    #     model_cfg['b'] = b if b < len(rest) else len(rest)
+    #     model_cfg['r'] = r if b < len(rest) else 1
+    #     with open(yaml_path, 'w') as f:
+    #         yaml.dump(model_cfg, f)
