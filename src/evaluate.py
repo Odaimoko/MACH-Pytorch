@@ -65,6 +65,7 @@ if __name__ == "__main__":
     gt = None
 
     logging.info("Evaluating config %s" % (a.model))
+    logging.info("Dataset config %s" % (a.dataset))
     for r in tqdm.tqdm(range(R)):
         # load ground truth
         test_set.change_feat_map(r)
