@@ -5,6 +5,7 @@ while getopts 'm:d:' c; do
     d) DATASET=$OPTARG ;;
     esac
 done
+
 if [ -z $MODEL ] || [ -z $DATASET ]; then
     echo "Need to input model and dataset"
     exit

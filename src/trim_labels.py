@@ -1,7 +1,5 @@
 import os
 from xclib.data import data_utils
-from collections import Counter
-import numpy as np
 import json
 from mach_utils import *
 import yaml
@@ -12,12 +10,15 @@ def get_args():
     p = ArgumentParser()
     p.add_argument("--dataset", "-d", dest = "dataset", type = str, required = True,
                    help = "Dataset name. Initial should be CAPITAL.")
+    p.add_argument("--type", "-t", dest = "type", type = str, required = True, default = "cumsum",
+                   help = "Dataset name. Initial should be CAPITAL.")
     return p.parse_args()
 
 
 if __name__ == "__main__":
     # read in files
     a = get_args()
+    assert a.type in ['cumsum', 'rank']
     name = a.dataset
     filepath = 'data/{n1}/ori_{n2}_train.txt'.format(n1 = name, n2 = name.lower())
     print(filepath)
@@ -33,11 +34,15 @@ if __name__ == "__main__":
         count_np[k] = v
     idx = np.argsort(count_np)
     sorted_count = np.sort(count_np)
-    percentile = np.cumsum(sorted_count) / sorted_count.sum()
-    # mapping old labels to new labels. we need new labels for training, and the mapping for testing.
-    rate = [0.1 * i for i in range(1, 10)]
-    discard_sets = [set(idx[np.nonzero(percentile < r)]) for r in rate]
     all_label_set = set(range(num_labels))
+    if a.type == 'cumsum':
+        rate = [0.1 * i for i in range(1, 10)]
+        percentile = np.cumsum(sorted_count) / sorted_count.sum()
+        discard_sets = [set(idx[np.nonzero(percentile < r)]) for r in rate]
+    elif a.type == 'rank':
+        rate = [0.1 * i for i in range(1, 10)]
+        discard_sets = [set(idx[0:int(len(idx) * r)]) for r in rate]
+    # mapping old labels to new labels. we need new labels for training, and the mapping for testing.
     rest_labels = [all_label_set - d for d in discard_sets]
     label_mapping = []
     for rest in rest_labels:
@@ -47,8 +52,8 @@ if __name__ == "__main__":
             l: [i, int(count_np[l])] for i, l in enumerate(rest)
         }
         label_mapping.append(mapping)
-    prefixes = ['{n2}_trimcumsum{rate:.1f}'.format(
-        n2 = name, rate = r) for r in rate]
+    prefixes = ['{n2}_trim{type}{rate:.1f}'.format(
+        n2 = name, rate = r, type = a.type) for r in rate]
     meta_info_filepath = [
         'data/{n1}/{pref}_meta.json'.format(n1 = name, pref = p) for p in prefixes]
     for mapping, meta_path in zip(label_mapping, meta_info_filepath):
@@ -90,8 +95,6 @@ if __name__ == "__main__":
     data = os.path.join(
         'config/dataset', "{n}.yaml".format(n = name.lower()))  # eurlex.yaml
     ori_data_cfg = get_config(data)
-    prefixes = ['{n2}_trimcumsum{rate:.1f}'.format(
-        n2 = name, rate = r) for r in rate]
     for p, rest, n in zip(prefixes, rest_labels, num_instances):
         data_cfg = ori_data_cfg.copy()
         yaml_path = os.path.join(config_dir, "%s.yaml" % (p))
@@ -102,18 +105,3 @@ if __name__ == "__main__":
         data_cfg['train_size'] = int(n * .9)
         with open(yaml_path, 'w') as f:
             yaml.dump(data_cfg, f)
-    
-    # config_dir = 'config/model_trim/'+name
-    # mkdir(config_dir)
-    # model = os.path.join(
-    #     'config/model', "{n}.yaml".format(n=name.lower()))  # eurlex.yaml
-    # model_cfg = get_config(model)
-    # b = model_cfg['b']
-    # r = model_cfg['r']
-    # for p, rest in zip(prefixes, rest_labels):
-    #     yaml_path = os.path.join(config_dir, "%s.yaml" % (p))
-    #     # if labels are less than b, we only need 1 repetition and no need to map labels?
-    #     model_cfg['b'] = b if b < len(rest) else len(rest)
-    #     model_cfg['r'] = r if b < len(rest) else 1
-    #     with open(yaml_path, 'w') as f:
-    #         yaml.dump(model_cfg, f)
