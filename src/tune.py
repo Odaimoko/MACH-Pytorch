@@ -11,7 +11,7 @@ import subprocess
 def get_args():
     p = ArgumentParser()
     p.add_argument("--dataset", '-d', dest="dataset", type=str, required=True,
-                   help="Dataset name .")
+                   help="Dataset name. Initial should be lower-case.")
     return p.parse_args()
 
 

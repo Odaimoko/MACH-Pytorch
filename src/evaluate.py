@@ -38,7 +38,7 @@ if __name__ == "__main__":
     data_cfg = get_config(a.dataset)
     model_cfg = get_config(a.model)
     log_file = "eval.log"
-    model_dir = os.path.join(model_cfg["model_dir"], data_cfg["name"])
+    model_dir = os.path.join(model_cfg["model_dir"], data_cfg["prefix"])
     logging.basicConfig(level=logging.INFO,
                         format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%Y-%m-%d %H:%M:%S',
                         handlers=[
