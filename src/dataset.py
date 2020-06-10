@@ -28,7 +28,8 @@ class XCDataset(Dataset):
         self.ori_dim = data_cfg['ori_dim']
         self.dest_dim = model_cfg['dest_dim']
         self.use_feature_hash = model_cfg['is_feat_hash']
-        self.ori_labels = data_cfg['num_labels']
+        self.ori_labels = data_cfg['ori_labels']
+        self.num_labels = data_cfg['num_labels']
         self.dest_labels = model_cfg['b']
         self.data_cfg = data_cfg
         self.model_cfg = model_cfg
@@ -39,13 +40,17 @@ class XCDataset(Dataset):
         self.feat_mapping = get_feat_hash(feat_path, rep)  # diff each rep
         
         # load data
+        if type == 'te':  # test will use all labels, while trimmed dataset only use a subset
+            gt_size = self.ori_labels
+        else:
+            gt_size = self.num_labels
         self.meta_info = []
         if os.path.exists(txt_path):
             with open(txt_path, 'r') as f:
                 n = -1
                 for line in f:
                     line = line.strip().split()
-                    if not line or ':'  in line[0]:  # in Delicious, there is one line which does not have labels
+                    if not line or ':' in line[0]:  # in Delicious, there is one line which does not have labels
                         continue
                     n += 1
                     if type == 'tr':
@@ -58,7 +63,7 @@ class XCDataset(Dataset):
                               for i in line[0].split(',')]  # list of label index
                     idx_values_pair = [v.split(":") for v in line[1:]]
                     y = torch.sparse_coo_tensor([labels], torch.ones(len(labels)),
-                                                size = (self.ori_labels,))
+                                                size = (gt_size,))
                     self.meta_info.append([y, idx_values_pair])
         
         else:

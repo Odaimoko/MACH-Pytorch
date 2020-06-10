@@ -4,15 +4,17 @@ from argparse import ArgumentParser
 from fc_network import FCNetwork
 import tqdm
 from dataset import XCDataset
+import json
+from typing import Dict, List
 
 
 def get_args():
     p = ArgumentParser()
-    p.add_argument("--model", dest="model", type=str, required=True,
+    p.add_argument("--model", '-m', dest="model", type=str, required=True,
                    help="Path to the model config yaml file.")
-    p.add_argument("--dataset", dest="dataset", type=str, required=True,
+    p.add_argument("--dataset", '-d', dest="dataset", type=str, required=True,
                    help="Path to the data config yaml file.")
-    p.add_argument("--gpus", dest="gpus", type=str, required=False, default="0",
+    p.add_argument("--gpus", '-g', dest="gpus", type=str, required=False, default="0",
                    help="A string that specifies which GPU you want to use, split by comma. Eg 0,1")
     return p.parse_args()
 
@@ -27,10 +29,6 @@ def get_inv_hash(counts, inv_mapping, j):
     """
     labels = inv_mapping[counts[j]: counts[j + 1]]
     return labels
-
-
-def evaluate():
-    pass
 
 
 if __name__ == "__main__":
@@ -49,13 +47,13 @@ if __name__ == "__main__":
                             logging.StreamHandler()
                         ])
 
-    # load models
     cuda = torch.cuda.is_available()
     R = model_cfg['r']
     b = model_cfg['b']
-    ori_labels = data_cfg["num_labels"]
+    num_labels = data_cfg["num_labels"]
     dest_dim = model_cfg['dest_dim']
     name = data_cfg['name']
+    prefix = data_cfg['prefix']
     record_dir = data_cfg["record_dir"]
     data_dir = os.path.join("data", name)
 
@@ -80,28 +78,45 @@ if __name__ == "__main__":
 
         # load mapping
         label_path = os.path.join(record_dir, "_".join(
-            [name, str(ori_labels), str(b), str(R)]))  # Bibtex_159_100_32
+            [prefix, str(num_labels), str(b), str(R)]))  # Bibtex_159_100_32
         counts, label_mapping, inv_mapping = get_label_hash(label_path, r)
         label_mapping = torch.from_numpy(label_mapping)
 
         if cuda:
             model = torch.nn.DataParallel(model, device_ids=gpus).cuda()
         preload_path = model_cfg["pretrained"] if model_cfg["pretrained"] else best_param
+        # load models
         if os.path.exists(preload_path):
             meta_info = torch.load(preload_path)
             model.load_state_dict(meta_info['model'])
         else:
             raise FileNotFoundError(
                 "Model {} does not exist.".format(preload_path))
-        # predict
-        # gt: original label. p: hashed.
+        #
+        # predict. gt: original label. p: hashed.
         gt, p, _, _ = compute_scores(model, test_loader)
 
         # use feature hashing to map back
         pred_avg_meter.update(p[:, label_mapping], 1)
+        
+    # map trimmed labels back to original ones
+    scores = pred_avg_meter.avg
+    if data_cfg['trimmed']:
+        mapping_file = os.path.join(data_dir, prefix+"_meta.json")
+        with open(mapping_file, 'r') as f:
+            trim_mapping: Dict = json.load(f)
+        reverse_mapping = {v[0]: int(k) for k, v in trim_mapping.items()}
+        reverse_mapping_tensor = torch.tensor(
+            [reverse_mapping[k] for k in sorted(reverse_mapping.keys())])
+
+        ori_labels = data_cfg['ori_labels']
+        num_ins = scores.shape[0]
+        ori_scores = np.zeros([num_ins, ori_labels])
+        ori_scores[:, reverse_mapping_tensor] = scores
+        scores = ori_scores
     if gt is None:
         raise Exception("You must have at least one model.")
     else:
         #  Sum of avg is larger than 1 -> that is the feature, no problem
-        d = evaluate_scores(gt, pred_avg_meter.avg, model_cfg)
+        d = evaluate_scores(gt, scores, model_cfg)
         log_eval_results(d)

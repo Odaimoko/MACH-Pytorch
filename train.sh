@@ -9,6 +9,8 @@ if [ -z $MODEL ] || [ -z $DATASET ]; then
     echo "Need to input model and dataset"
     exit
 fi
+# Capital initial for DATASET, lower for MODEL
+# ./train.sh -m bibtex -d Bibtex_trimcumsum0.1
 MODEL_CONFIG=config/model/$MODEL.yaml
 DATASET_CONFIG1=config/dataset/$DATASET.yaml
 if [ -e DATASET_CONFIG1 ]; then

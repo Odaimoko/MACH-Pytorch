@@ -4,3 +4,5 @@ num_labels: 159 # number of original labels
 ori_dim: 1836 # feature dimension before feature hashing
 train_size: 4380 #  number of training samples, the rest are in validation set
 record_dir: "record" # preprocess results directory
+trimmed: false # is the labels of this dataset trimmed
+ori_labels: 159

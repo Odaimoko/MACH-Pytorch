@@ -24,7 +24,8 @@ In short, MACH use hash functions to map `L` labels into `B` buckets. In total t
 - [x] Decide A and B for each dataset.[cannot]
 - [x] Tune hyper-parameters.
 - [x] Trim label. 
-- [ ] Evaluate trimmed version.
+- [ ] Train and Evaluate trimmed datasets.
+- [ ] Document for trimmed datasets.
 
 
 ## Currently supporting ...
@@ -62,7 +63,7 @@ data/
     └── bibtex_test.txt
 ```
 
-Note: The data directory\'s name should be the same as the prefix in the subdirectory and in the config file, and should be case-sensitive. Eg. for *Delicious* dataset, the `name` field in `config/data/delicious.yaml`, the name of the subdirectory under `data` both should be *Delicious*.
+[To be updated] Note: The data directory\'s name should be the same as the prefix in the subdirectory and in the config file, and should be case-sensitive. Eg. for *Delicious* dataset, the `name` field in `config/data/delicious.yaml`, the name of the subdirectory under `data` both should be *Delicious*.
 
 `*_test.txt` contains the test dataset and `*_train.txt` contains both training and validation datasets. The number of training instances are specified by `train_size` in data config file. Assume it is `m` . The first `m` training instances in `*_train.txt` are used in training, with the rest being validation set.
 

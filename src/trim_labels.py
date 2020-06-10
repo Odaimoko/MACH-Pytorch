@@ -34,7 +34,7 @@ if __name__ == "__main__":
     idx = np.argsort(count_np)
     sorted_count = np.sort(count_np)
     percentile = np.cumsum(sorted_count)/sorted_count.sum()
-    # mapping old labels to new labels. we need new labels for training.
+    # mapping old labels to new labels. we need new labels for training, and the mapping for testing.
     rate = [0.1 * i for i in range(1, 10)]
     discard_sets = [set(idx[np.nonzero(percentile < r)]) for r in rate]
     all_label_set = set(range(num_labels))
@@ -94,6 +94,8 @@ if __name__ == "__main__":
         n2=name, rate=r) for r in rate]
     for p, rest, n in zip(prefixes, rest_labels, num_instances):
         yaml_path = os.path.join(config_dir, "%s.yaml" % (p))
+        data_cfg['trimmed'] = True
+        data_cfg['ori_labels'] = data_cfg['num_labels']
         data_cfg['prefix'] = p
         data_cfg['num_labels'] = len(rest)
         data_cfg['train_size'] = int(n*.9)

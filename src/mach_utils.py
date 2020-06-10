@@ -80,8 +80,8 @@ def compute_scores(model, loader, label_mapping = None, b = None):
         TODO: -  of course we can compute it in advance
     :param model:
     :param loader:
-    :return: gt & pred: num_instances x num_labels. loss: scalar
-    :return:
+    :return: gt & pred numpy ndarray: num_instances x num_labels. loss: scalar
+    :return: mAP: scalar
     """
     
     cuda = torch.cuda.is_available()
