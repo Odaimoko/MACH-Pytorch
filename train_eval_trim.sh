@@ -2,7 +2,7 @@
 #model=bibtex
 #data=Bibtex
 #type=rank
-while getopts 'm:d:' c; do
+while getopts 'm:d:t:' c; do
     case $c in
     m) model=$OPTARG ;;
     d) data=$OPTARG ;;
@@ -12,6 +12,6 @@ done
 
 for (( j = 1; j < 10; ++j)); do
     MODEL=$model
-    DATA=${data}_trimrank0.$j
+    DATA=${data}_trim${type}0.$j
     ./train.sh -m $MODEL -d $DATA
 done
