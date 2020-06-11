@@ -17,20 +17,23 @@ def get_args():
 
 def create_config(model_cfg, dir_path):
     p = pathlib.PurePosixPath(dir_path)
+    bs = [500, 1000, 2000]
     lrs = [.1, .01, .001]
     hiddens = [
         [32, 32], [128, 128], [512, 512],
-        [32, 32, 32], [128, 128, 128], [512, 512, 512]
+        [128, 128, 128], [512, 512, 512]
     ]
     d = model_cfg.copy()
     for lr in lrs:
         for h in hiddens:
-            d['lr'] = lr
-            d['hidden'] = h
-            file_name = "lr_%s-hidden_%s.yaml" % (
-                str(lr), str(h[0]) + "_" + str(len(h)))
-            with open(os.path.join(dir_path, file_name), 'w') as f:
-                yaml.dump(d, f)
+            for b in bs:
+                d['b'] = b
+                d['lr'] = lr
+                d['hidden'] = h
+                file_name = "B_%d_lr_%s-hidden_%s.yaml" % (
+                    b, str(lr), str(h[0]) + "_" + str(len(h)))
+                with open(os.path.join(dir_path, file_name), 'w') as f:
+                    yaml.dump(d, f)
 
 
 if __name__ == "__main__":
@@ -42,24 +45,24 @@ if __name__ == "__main__":
     config_temp = os.path.join("config/temp/", a.dataset)
     mkdir(config_temp)
     create_config(model_cfg, dir_path=config_temp)
-    R = model_cfg['r']
+    # R = model_cfg['r']
 
-    cli_args = "--model %s --dataset %s" % (model, dataset)
-    os.system(py+" src/preprocess.py " + cli_args)
-    for c in sorted(os.listdir(config_temp)):
-        current_model = os.path.join(config_temp, c)
-        cli_args = "--model %s --dataset %s" % (current_model, dataset)
+    # cli_args = "--model %s --dataset %s" % (model, dataset)
+    # os.system(py+" src/preprocess.py " + cli_args)
+    # for c in sorted(os.listdir(config_temp)):
+    #     current_model = os.path.join(config_temp, c)
+    #     cli_args = "--model %s --dataset %s" % (current_model, dataset)
 
-        cmds = []
-        k = 0
-        for r in range(R):
-            cmd = "export CUDA_VISIBLE_DEVICES=%d; %s -W ignore::Warning src/train.py %s --rep %d --gpus 0" % (
-                k, py, cli_args, r)
-            k = (k+1) % 4
-            cmds.append(cmd)
-        with multiprocessing.pool.Pool(processes=4) as p:
-            print("Running... %s" % current_model, cmd)
-            p.imap(os.system, cmds)
-            p.close()
-            p.join()
-        os.system(py+" src/evaluate.py " + cli_args)
+    #     cmds = []
+    #     k = 0
+    #     for r in range(R):
+    #         cmd = "export CUDA_VISIBLE_DEVICES=%d; %s -W ignore::Warning src/train.py %s --rep %d --gpus 0" % (
+    #             k, py, cli_args, r)
+    #         k = (k+1) % 4
+    #         cmds.append(cmd)
+    #     with multiprocessing.pool.Pool(processes=4) as p:
+    #         print("Running... %s" % current_model, cmd)
+    #         p.imap(os.system, cmds)
+    #         p.close()
+    #         p.join()
+    #     os.system(py+" src/evaluate.py " + cli_args)
