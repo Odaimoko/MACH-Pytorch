@@ -48,10 +48,10 @@ if __name__ == "__main__":
     R = model_cfg['r']
 
     cli_args = "--model %s --dataset %s" % (model, dataset)
-    os.system(py+" src/preprocess.py " + cli_args)
     for c in sorted(os.listdir(config_temp)):
         current_model = os.path.join(config_temp, c)
         cli_args = "--model %s --dataset %s" % (current_model, dataset)
+        os.system(py + " src/preprocess.py " + cli_args)
 
         cmds = []
         k = 0

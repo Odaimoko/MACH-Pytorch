@@ -25,7 +25,7 @@ def log_time(*text, record = None):
             start = time.perf_counter()
             res=func(*args, **kw)
             end = time.perf_counter()
-            r = print if not record else record  # 如果没有record，默认print
+            r = print if not record else record
             t = (func.__name__,) if not text else text
             # print(r, t)
             r(" ".join(t) + " " + "Time elapsed: %.3f s." % (end - start))
