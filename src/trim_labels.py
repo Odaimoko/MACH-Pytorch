@@ -11,7 +11,7 @@ def get_args():
     p.add_argument("--dataset", "-d", dest = "dataset", type = str, required = True,
                    help = "Dataset name. Initial should be CAPITAL.")
     p.add_argument("--type", "-t", dest = "type", type = str, required = True, default = "cumsum",
-                   help = "Dataset name. Initial should be CAPITAL.")
+                   help = "Should be 'cumsum' or 'rank'.")
     return p.parse_args()
 
 

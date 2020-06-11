@@ -1,6 +1,6 @@
 name: "Delicious" # dataset name, and data directory name
 prefix: "Delicious" # training dataset prefix, such as Eurlex_trimcumsum0.1
-num_labels: 983 # number of original labels
+num_labels: 983 # number of actual labels
 ori_dim: 500 # feature dimension before feature hashing
 train_size: 11000 #  number of training samples, the rest are in validation set
 record_dir: "record" # preprocess results directory
