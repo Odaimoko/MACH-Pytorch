@@ -50,7 +50,9 @@ class XCDataset(Dataset):
                 n = -1
                 for line in f:
                     line = line.strip().split()
-                    if not line or ':' in line[0]:  # in Delicious, there is one line which does not have labels
+                    if not line or ':' in line[0] or ':' not in line[1]:
+                        # in Delicious, there is one line which does not have labels
+                        # the third criterion is to remove the first meta info line
                         continue
                     n += 1
                     if type == 'tr':

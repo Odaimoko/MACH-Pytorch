@@ -23,10 +23,15 @@ In short, MACH use hash functions to map `L` labels into `B` buckets. In total t
 - [x] Test on large datasets.
 - [x] Decide A and B for each dataset.[cannot]
 - [x] Tune hyper-parameters.
+    - [x] bibtex
+    - [x] delicious
+    - [ ] mediamill
+    - [x] wiki10
+    - [ ] Amazon670k 
 - [x] Trim label. 
-- [x] Train and Evaluate trimmed datasets.
-- [x] Document for trimmed datasets.
-- [ ] Use the same text dataset file for normal and trimmed experiments.
+    - [x] Train and Evaluate trimmed datasets code.
+    - [x] Document for trimmed datasets.
+    - [ ] Does trimming labels break MACH's theoretical guarantee?
 
 
 ## Currently supporting ...
@@ -68,7 +73,7 @@ Note: The data directory\'s name should be the same as the `name` field in the c
 
 `*_test.txt` contains the test dataset and `*_train.txt` contains both training and validation datasets. The number of training instances are specified by `train_size` in data config file. Assume it is `m` . The first `m` training instances in `*_train.txt` are used in training, with the rest being validation set.
 
-The format of the text files can be found [here](http://manikvarma.org/downloads/XC/XMLRepository.html)  (search `README`). Please remove the first line in the original dataset if applicable, which contains 3 numbers indicating the **number of instances, features and labels**. These should be included in the dataset config. You may also want to retain the original version since it will be used in label trimming experiments. (TO BE SIMPLIFIED).
+The format of the text files can be found [here](http://manikvarma.org/downloads/XC/XMLRepository.html)  (search `README`). The first line in the original dataset contains 3 numbers indicating the **number of instances, features and labels**. These should also be included in the dataset config manually. 
 
 ### Configuration
 

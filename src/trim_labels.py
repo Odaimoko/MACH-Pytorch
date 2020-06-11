@@ -10,7 +10,7 @@ def get_args():
     p = ArgumentParser()
     p.add_argument("--dataset", "-d", dest = "dataset", type = str, required = True,
                    help = "Dataset name. Initial should be CAPITAL.")
-    p.add_argument("--type", "-t", dest = "type", type = str, required = True, default = "cumsum",
+    p.add_argument("--type", "-t", dest = "type", type = str, required = False, default = "cumsum",
                    help = "Should be 'cumsum' or 'rank'.")
     return p.parse_args()
 
@@ -20,7 +20,7 @@ if __name__ == "__main__":
     a = get_args()
     assert a.type in ['cumsum', 'rank']
     name = a.dataset
-    filepath = 'data/{n1}/ori_{n2}_train.txt'.format(n1 = name, n2 = name.lower())
+    filepath = 'data/{n1}/{n1}_train.txt'.format(n1 = name)
     print(filepath)
     
     # count labels -> where to? only in train
