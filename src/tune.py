@@ -12,6 +12,8 @@ def get_args():
     p = ArgumentParser()
     p.add_argument("--dataset", '-d', dest="dataset", type=str, required=True,
                    help="Dataset name. Initial should be lower-case.")
+    p.add_argument("--process", '-p', dest="processes", type=int, required=False, default=4,
+                   help="Number of processes to run in parallel")
     return p.parse_args()
 
 
@@ -60,7 +62,7 @@ if __name__ == "__main__":
                 k, py, cli_args, r)
             k = (k+1) % 4
             cmds.append(cmd)
-        with multiprocessing.pool.Pool(processes=4) as p:
+        with multiprocessing.pool.Pool(processes=a.processes) as p:
             print("Running... %s" % current_model, cmd)
             p.imap(os.system, cmds)
             p.close()
