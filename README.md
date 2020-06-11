@@ -26,12 +26,19 @@ In short, MACH use hash functions to map `L` labels into `B` buckets. In total t
     - [x] bibtex
     - [x] delicious
     - [ ] mediamill
+    - [ ] Eurlex
     - [x] wiki10
     - [ ] Amazon670k 
 - [x] Trim label. 
     - [x] Train and Evaluate trimmed datasets code.
     - [x] Document for trimmed datasets.
     - [ ] Does trimming labels break MACH's theoretical guarantee?
+    - [x] bibtex
+    - [x] delicious
+    - [ ] mediamill
+    - [ ] Eurlex 
+    - [ ] wiki10
+    - [ ] Amazon670k 
 
 
 ## Currently supporting ...

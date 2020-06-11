@@ -37,7 +37,7 @@ if __name__ == "__main__":
 
     data_cfg = get_config(a.dataset)
     model_cfg = get_config(a.model)
-    log_file = "eval.log"
+    log_file = data_cfg['prefix'] + "_eval.log"
     model_dir = os.path.join(model_cfg["model_dir"], data_cfg["prefix"])
     logging.basicConfig(level=logging.INFO,
                         format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%Y-%m-%d %H:%M:%S',
@@ -99,7 +99,7 @@ if __name__ == "__main__":
 
         # use feature hashing to map back
         pred_avg_meter.update(p[:, label_mapping], 1)
-        
+
     # map trimmed labels back to original ones
     scores = pred_avg_meter.avg
     if data_cfg['trimmed']:
