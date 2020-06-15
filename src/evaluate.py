@@ -31,6 +31,43 @@ def get_inv_hash(counts, inv_mapping, j):
     return labels
 
 
+def single_rep(data_cfg, model_cfg, r):
+
+    # load ground truth
+    test_set.change_feat_map(r)
+    model_dir = get_model_dir(data_cfg, model_cfg, r)
+    # load mapping
+    counts, label_mapping, inv_mapping = get_label_hash(label_path, r)
+    label_mapping = torch.from_numpy(label_mapping)
+    # load models
+    best_param = os.path.join(model_dir, model_cfg["best_file"])
+    preload_path = model_cfg["pretrained"] if model_cfg["pretrained"] else best_param
+    if os.path.exists(preload_path):
+        meta_info = torch.load(preload_path)
+        model.load_state_dict(meta_info['model'])
+    else:
+        raise FileNotFoundError(
+            "Model {} does not exist.".format(preload_path))
+    # predict. gt: original label. p: hashed.
+    gt, p, _, _ = compute_scores(model, test_loader)
+    return gt, p[:, label_mapping]
+
+
+def map_trimmed_back(scores, data_dir, prefix, ori_labels):
+    mapping_file = os.path.join(data_dir, prefix + "_meta.json")
+    with open(mapping_file, 'r') as f:
+        trim_mapping: Dict = json.load(f)
+    reverse_mapping = {v[0]: int(k) for k, v in trim_mapping.items()}
+    reverse_mapping_tensor = torch.tensor(
+        [reverse_mapping[k] for k in sorted(reverse_mapping.keys())])
+
+    num_ins = scores.shape[0]
+    ori_scores = np.zeros([num_ins, ori_labels])
+    ori_scores[:, reverse_mapping_tensor] = scores
+    scores = ori_scores
+    return scores
+
+
 if __name__ == "__main__":
     a = get_args()
     gpus = [int(i) for i in a.gpus.split(",")]
@@ -60,61 +97,31 @@ if __name__ == "__main__":
     # load dataset
     test_file = os.path.join(data_dir, name + "_test.txt")
     test_set = XCDataset(test_file, 0, data_cfg, model_cfg, 'te')
+    test_loader = torch.utils.data.DataLoader(
+        test_set, batch_size=model_cfg['batch_size'])
+    # construct model
+    layers = [dest_dim] + model_cfg['hidden'] + [b]
+    model = FCNetwork(layers)
+    if cuda:
+        model = torch.nn.DataParallel(model, device_ids=gpus).cuda()
+    label_path = os.path.join(record_dir, "_".join(
+        [prefix, str(num_labels), str(b), str(R)]))  # Bibtex_159_100_32
 
     pred_avg_meter = AverageMeter()
     gt = None
-
     logging.info("Evaluating config %s" % (a.model))
     logging.info("Dataset config %s" % (a.dataset))
     for r in tqdm.tqdm(range(R)):
-        # load ground truth
-        test_set.change_feat_map(r)
-        test_loader = torch.utils.data.DataLoader(
-            test_set, batch_size=model_cfg['batch_size'])
-        model_dir = get_model_dir(data_cfg, model_cfg, r)
-        best_param = os.path.join(model_dir, model_cfg["best_file"])
-
-        layers = [dest_dim] + model_cfg['hidden'] + [b]
-        model = FCNetwork(layers)
-
-        # load mapping
-        label_path = os.path.join(record_dir, "_".join(
-            [prefix, str(num_labels), str(b), str(R)]))  # Bibtex_159_100_32
-        counts, label_mapping, inv_mapping = get_label_hash(label_path, r)
-        label_mapping = torch.from_numpy(label_mapping)
-
-        if cuda:
-            model = torch.nn.DataParallel(model, device_ids=gpus).cuda()
-        preload_path = model_cfg["pretrained"] if model_cfg["pretrained"] else best_param
-        # load models
-        if os.path.exists(preload_path):
-            meta_info = torch.load(preload_path)
-            model.load_state_dict(meta_info['model'])
-        else:
-            raise FileNotFoundError(
-                "Model {} does not exist.".format(preload_path))
-        #
-        # predict. gt: original label. p: hashed.
-        gt, p, _, _ = compute_scores(model, test_loader)
-
+        gt, ori_pred = single_rep(data_cfg, model_cfg, r)
         # use feature hashing to map back
-        pred_avg_meter.update(p[:, label_mapping], 1)
+        pred_avg_meter.update(ori_pred, 1)
 
     # map trimmed labels back to original ones
     scores = pred_avg_meter.avg
     if data_cfg['trimmed']:
-        mapping_file = os.path.join(data_dir, prefix+"_meta.json")
-        with open(mapping_file, 'r') as f:
-            trim_mapping: Dict = json.load(f)
-        reverse_mapping = {v[0]: int(k) for k, v in trim_mapping.items()}
-        reverse_mapping_tensor = torch.tensor(
-            [reverse_mapping[k] for k in sorted(reverse_mapping.keys())])
+        scores = map_trimmed_back(
+            scores, data_dir, prefix, data_cfg['ori_labels'])
 
-        ori_labels = data_cfg['ori_labels']
-        num_ins = scores.shape[0]
-        ori_scores = np.zeros([num_ins, ori_labels])
-        ori_scores[:, reverse_mapping_tensor] = scores
-        scores = ori_scores
     if gt is None:
         raise Exception("You must have at least one model.")
     else:
