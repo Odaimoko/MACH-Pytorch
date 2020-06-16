@@ -129,7 +129,7 @@ Training script trains model for only one repetition. It creates a `models` dire
 
 ```
 models/
-└── bibtex
+└── Bibtex
     ├── B_100_R_32_feat_1000_hidden_[32, 32]_rep_00
     │   ├── best_ckpt.pkl
     │   ├── final_ckpt.pkl
@@ -139,7 +139,7 @@ models/
     │   ├── final_ckpt.pkl
     │   └── train.log
     ...
-    └── eval.log
+    └── Bibtex_eval.log
 ```
 
 
@@ -152,6 +152,7 @@ models/
 ```bash
 python src/evaluate.py -h
 usage: evaluate.py [-h] --model MODEL --dataset DATASET [--gpus GPUS]
+                   [--type TYPE] [--rate RATE]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -161,11 +162,28 @@ optional arguments:
                         Path to the data config yaml file.
   --gpus GPUS, -g GPUS  A string that specifies which GPU you want to use,
                         split by comma. Eg 0,1
+  --type TYPE, -t TYPE  Evaluation type. Should be 'all'(default) and/or
+                        'trim_eval', split by comma. Eg. 'all,trim_eval'. If
+                        it is 'trim_eval', the rate parameter should be
+                        specified. 
+                        'all': Evaluate normally. If the 'trimmed'
+                        field in data config file is true, the code will
+                        automatically map the rest of the labels back to the
+                        orginal ones. 'trim_eval': Trim labels when
+                        evaluating. The scores with tail labels will be set to
+                        0 in order to not predict these ones. This checks how
+                        much tail labels affect final evaluation metrics. Plus
+                        it will evaluate average precision on tail and head
+                        labels only.
+  --rate RATE, -r RATE  If evaluation needs trimming, this parameter specifies
+                        how many labels will be trimmed, decided by cumsum.
+                        Should be a string containing trimming rates split by
+                        comma. Eg '0.1,0.2'. Default '0.1'.
 ```
 
-After training all `R` repetitions, running `evaluate.py` provides the following metrics: Precision, nDCG, PSPrecision, PSnDCG, which are described in [XMLrepo](http://manikvarma.org/downloads/XC/XMLRepository.html). It also logs them into `models/[dataset]/eval.log` (see above).
+After training all `R` repetitions, running `evaluate.py` provides the following metrics: Precision, nDCG, PSPrecision, PSnDCG, which are described in [XMLrepo](http://manikvarma.org/downloads/XC/XMLRepository.html). It also logs them into `models/[dataset]/[dataset]_eval.log` (see above).
 
-### Trim labels
+### Trim labels[Deprecated]
 
 ```bash
 python src/trim_labels.py -h
@@ -201,3 +219,4 @@ data/Bibtex/
 There are two modes for trimming off tail labels: `cumsum` and `rank`. Let the ratio of labels to be cut off `r`, and the number of instances `N` the number of total labels `L`. In `rank` mode, `r*L` labels with the fewest instances will be cut. In `cumsum` mode, the fewest labels whose numbers add up to `r*N` will be cut.
 
 After running trimming script, train and evaluate models as usual using these config files. 
+

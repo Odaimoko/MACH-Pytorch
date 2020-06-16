@@ -6,6 +6,8 @@ import tqdm
 from dataset import XCDataset
 import json
 from typing import Dict, List
+from trim_labels import get_discard_set
+from torchnet.meter import APMeter
 
 
 def get_args():
@@ -16,6 +18,14 @@ def get_args():
                    help="Path to the data config yaml file.")
     p.add_argument("--gpus", '-g', dest="gpus", type=str, required=False, default="0",
                    help="A string that specifies which GPU you want to use, split by comma. Eg 0,1")
+    p.add_argument("--type", '-t', dest="type", type=str, required=False, default="all",
+                   help="""Evaluation type. Should be 'all'(default) and/or 'trim_eval', split by comma. Eg. 'all,trim_eval'. If it is 'trim_eval', the rate parameter should be specified. 
+                   'all': Evaluate normally. If the 'trimmed' field in data config file is true, the code will automatically map the rest of the labels back to the orginal ones.
+                   'trim_eval': Trim labels when evaluating. The scores with tail labels will be set to 0 in order not to predict these ones. This checks how much tail labels affect final evaluation metrics. Plus it will evaluate average precision on tail and head labels only. 
+                   """)
+    p.add_argument("--rate", '-r', dest="rate", type=str, required=False, default="0.1",
+                   help="""If evaluation needs trimming, this parameter specifies how many labels will be trimmed, decided by cumsum.
+                   Should be a string containing trimming rates split by comma. Eg '0.1,0.2'. Default '0.1'.""")
     return p.parse_args()
 
 
@@ -32,7 +42,6 @@ def get_inv_hash(counts, inv_mapping, j):
 
 
 def single_rep(data_cfg, model_cfg, r):
-
     # load ground truth
     test_set.change_feat_map(r)
     model_dir = get_model_dir(data_cfg, model_cfg, r)
@@ -66,6 +75,10 @@ def map_trimmed_back(scores, data_dir, prefix, ori_labels):
     ori_scores[:, reverse_mapping_tensor] = scores
     scores = ori_scores
     return scores
+
+
+def sanity_check(a):
+    assert a.type in ['all', 'trim_eval', 'only_tail']
 
 
 if __name__ == "__main__":
@@ -118,13 +131,41 @@ if __name__ == "__main__":
 
     # map trimmed labels back to original ones
     scores = pred_avg_meter.avg
-    if data_cfg['trimmed']:
-        scores = map_trimmed_back(
-            scores, data_dir, prefix, data_cfg['ori_labels'])
+    types = a.type.split(',')
+    if 'all' in types:
+        if data_cfg['trimmed']:
+            # if use trim_eval or only_tail, data_cfg['trimmed'] should be false
+            scores = map_trimmed_back(
+                scores, data_dir, prefix, data_cfg['ori_labels'])
 
-    if gt is None:
-        raise Exception("You must have at least one model.")
-    else:
-        #  Sum of avg is larger than 1 -> that is the feature, no problem
-        d = evaluate_scores(gt, scores, model_cfg)
-        log_eval_results(d)
+        if gt is None:
+            raise Exception("You must have at least one model.")
+        else:
+            #  Sum of avg is larger than 1 -> that is the feature, no problem
+            d = evaluate_scores(gt, scores, model_cfg)
+            log_eval_results(d)
+
+    if 'trim_eval' in types or 'only_tail' in types:
+        #   find tail labels using  training set.
+        filepath = 'data/{n1}/{n1}_train.txt'.format(n1=name)
+        print(filepath)
+        rate = [float(f) for f in a.rate.split(',')]
+        discard_sets, count_np = get_discard_set(filepath, 'cumsum', rate)
+        all_label_set = set(range(num_labels))
+        rest_labels = [all_label_set - d for d in discard_sets]
+        if 'trim_eval' in types:
+            for r, dis_set, rest in zip(rate, discard_sets, rest_labels):
+                logging.info(
+                    "Evaluate when trimming off {num_dis} labels (cumsum rate: {rate:.2f}%%, actual rate: {r2:.2f}%%)".format(
+                        num_dis=len(dis_set), rate=r * 100, r2=len(dis_set) / num_labels * 100))
+                dis_list = sorted(list(dis_set))
+                rest_list = sorted(list(rest))
+                new_score = np.copy(scores)
+                new_score[:, dis_list] = 0
+                log_eval_results(evaluate_scores(gt, new_score, model_cfg))
+
+                # eval on head and tail labels, using original scores
+                ap = APMeter()
+                ap.add(scores, gt.todense())
+                logging.info("AP of tail labels and head labels: %.2f, %.2f.\n" % (
+                    ap.value()[dis_list].mean()*100, ap.value()[rest_list].mean()*100))

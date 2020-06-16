@@ -15,14 +15,8 @@ def get_args():
     return p.parse_args()
 
 
-if __name__ == "__main__":
-    # read in files
-    a = get_args()
-    assert a.type in ['cumsum', 'rank']
-    name = a.dataset
-    filepath = 'data/{n1}/{n1}_train.txt'.format(n1 = name)
-    print(filepath)
-    
+def get_discard_set(filepath, type, rate):
+    assert type in ['cumsum', 'rank']
     # count labels -> where to? only in train
     features, labels, num_samples, num_features, num_labels = data_utils.read_data(
         filepath)
@@ -34,15 +28,25 @@ if __name__ == "__main__":
         count_np[k] = v
     idx = np.argsort(count_np)
     sorted_count = np.sort(count_np)
-    all_label_set = set(range(num_labels))
-    if a.type == 'cumsum':
-        rate = [0.1 * i for i in range(1, 10)]
+    if type == 'cumsum':
         percentile = np.cumsum(sorted_count) / sorted_count.sum()
         discard_sets = [set(idx[np.nonzero(percentile < r)]) for r in rate]
-    elif a.type == 'rank':
-        rate = [0.1 * i for i in range(1, 10)]
+    elif type == 'rank':
         discard_sets = [set(idx[0:int(len(idx) * r)]) for r in rate]
+    return discard_sets, count_np
+
+
+if __name__ == "__main__":
+    # read in files
+    a = get_args()
+    name = a.dataset
+    filepath = 'data/{n1}/{n1}_train.txt'.format(n1 = name)
+    print(filepath)
+    
     # mapping old labels to new labels. we need new labels for training, and the mapping for testing.
+    rate = [0.1 * i for i in range(1, 10)]
+    discard_sets, count_np = get_discard_set(filepath, a, rate)
+    all_label_set = set(range(num_labels))
     rest_labels = [all_label_set - d for d in discard_sets]
     label_mapping = []
     for rest in rest_labels:
