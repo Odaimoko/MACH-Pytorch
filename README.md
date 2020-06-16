@@ -26,7 +26,7 @@ In short, MACH use hash functions to map `L` labels into `B` buckets. In total t
     - [x] bibtex
     - [x] delicious
     - [ ] mediamill
-    - [ ] Eurlex
+    - [x] Eurlex
     - [x] wiki10
     - [ ] Amazon670k 
 - [x] Trim label. 
@@ -181,7 +181,7 @@ optional arguments:
                         comma. Eg '0.1,0.2'. Default '0.1'.
 ```
 
-After training all `R` repetitions, running `evaluate.py` provides the following metrics: Precision, nDCG, PSPrecision, PSnDCG, which are described in [XMLrepo](http://manikvarma.org/downloads/XC/XMLRepository.html). It also logs them into `models/[dataset]/[dataset]_eval.log` (see above).
+After training all `R` repetitions, running `evaluate.py` provides the following metrics: Precision, nDCG, PSPrecision, PSnDCG and mAP, which are described in [XMLrepo](http://manikvarma.org/downloads/XC/XMLRepository.html). It also logs them into `models/[dataset]/[dataset]_eval.log` (see above).
 
 ### Trim labels[Deprecated]
 
