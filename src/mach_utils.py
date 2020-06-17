@@ -135,7 +135,7 @@ def evaluate_scores(gt, scores, model_cfg):
         "prec": prec,
         "ndcg": ndcg,
         "psp": PSprec,
-        "psndcg": PSnDCG,
+        "psn": PSnDCG,
         "mAP": [map_meter.value()]
     }
     return d

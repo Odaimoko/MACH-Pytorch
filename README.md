@@ -36,7 +36,7 @@ In short, MACH use hash functions to map `L` labels into `B` buckets. In total t
     - [x] bibtex
     - [x] delicious
     - [ ] mediamill
-    - [ ] Eurlex 
+    - [x] Eurlex 
     - [ ] wiki10
     - [ ] Amazon670k 
 
@@ -182,6 +182,14 @@ optional arguments:
 ```
 
 After training all `R` repetitions, running `evaluate.py` provides the following metrics: Precision, nDCG, PSPrecision, PSnDCG and mAP, which are described in [XMLrepo](http://manikvarma.org/downloads/XC/XMLRepository.html). It also logs them into `models/[dataset]/[dataset]_eval.log` (see above).
+
+Example usage:
+
+```bash
+python src/evaluate.py --model config/model/eurlex.yaml --dataset config/dataset/eurlex.yaml -t all,trim_eval -r 0.1,.2,.3,.4,.5,.6,.7,.8,.9
+```
+
+
 
 ### Trim labels[Deprecated]
 

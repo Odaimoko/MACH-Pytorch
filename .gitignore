@@ -137,4 +137,5 @@ data/
 data
 config/temp/
 config/data_trim
-.~exp.xlsx
+.*.xlsx
+bibtrimeval.txt
