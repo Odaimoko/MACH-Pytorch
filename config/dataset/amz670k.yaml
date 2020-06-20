@@ -1,7 +1,7 @@
 name: "Amazon670k" # dataset name, and data directory name
 prefix: "amazon" # training dataset prefix, such as Eurlex_trimcumsum0.1
 num_labels: 670091 # number of actual labels
-ori_dim: 135909	 # feature dimension before feature hashing
+ori_dim: 135909 # feature dimension before feature hashing
 train_size: 441400 #  number of training samples, the rest are in validation set. OUT OF 490449
 record_dir: "record" # preprocess results directory
 trimmed: false # is the labels of this dataset trimmed
