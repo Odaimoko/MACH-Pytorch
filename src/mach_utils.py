@@ -93,24 +93,25 @@ def compute_scores(model, loader, label_mapping = None, b = None):
     loss_func = torch.nn.BCEWithLogitsLoss()
     loss_meter = AverageMeter()
     map_meter = meter.mAPMeter()
-    for i, data in enumerate(loader):
-        X, y = data
-        X = X.to_dense()
-        if label_mapping is not None:
-            y = get_mapped_labels(y, label_mapping, b)
-        if cuda:
-            X = X.cuda()
-            y = y.cuda()
-        out = model(X)
-        if label_mapping is not None:
-            loss_meter.update(loss_func(out, y), X.shape[0])
-        out = F.softmax(out, 1)
-        if label_mapping is not None:
-            map_meter.add(out.detach(), y)  # map_meter uses softmax scores -
-        # or whatever? scoring function is monotonic
-        # append cuda tensor
-        gt.append(y)
-        scores.append(out)
+    with torch.no_grad():
+        for i, data in enumerate(loader):
+            X, y = data
+            X = X.to_dense()
+            if label_mapping is not None:
+                y = get_mapped_labels(y, label_mapping, b)
+            if cuda:
+                X = X.cuda()
+                y = y.cuda()
+            out = model(X)
+            if label_mapping is not None:
+                loss_meter.update(loss_func(out, y), X.shape[0])
+            out = F.softmax(out, 1)
+            if label_mapping is not None:
+                map_meter.add(out.detach(), y)  # map_meter uses softmax scores -
+            # or whatever? scoring function is monotonic
+            # append cuda tensor
+            gt.append(y)
+            scores.append(out)
     gt = torch.cat(gt)
     scores = torch.cat(scores)
     if gt.is_sparse:
