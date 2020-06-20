@@ -37,7 +37,7 @@ In short, MACH use hash functions to map `L` labels into `B` buckets. In total t
     - [x] delicious
     - [ ] mediamill
     - [x] Eurlex 
-    - [ ] wiki10
+    - [x] wiki10
     - [ ] Amazon670k 
 
 
