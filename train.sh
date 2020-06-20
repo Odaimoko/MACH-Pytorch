@@ -14,7 +14,7 @@ fi
 # ./train.sh -m bibtex -d Bibtex_trimcumsum0.1
 MODEL_CONFIG=config/model/$MODEL.yaml
 DATASET_CONFIG1=config/dataset/$DATASET.yaml
-if [ -e DATASET_CONFIG1 ]; then
+if [ -e $DATASET_CONFIG1 ]; then
     DATASET_CONFIG=$DATASET_CONFIG1
 else
     # trimmed
@@ -30,13 +30,13 @@ echo $MODEL_CONFIG
 echo $DATASET_CONFIG
 python -W ignore::Warning src/preprocess.py --model $MODEL_CONFIG --dataset $DATASET_CONFIG
 for ((i = 0; i < 8; i++)); do
-    for ((j = 0; j < 4; j++)); do
-        part=$(($i * 4 + $j))
-        echo $part
-        export CUDA_VISIBLE_DEVICES=$j
-        python -W ignore::Warning src/train.py --rep $part --model $MODEL_CONFIG \
-            --dataset $DATASET_CONFIG --gpus 0 &
-    done
-    wait
+   for ((j = 0; j < 4; j++)); do
+       part=$(($i * 4 + $j))
+       echo $part
+       export CUDA_VISIBLE_DEVICES=$j
+       python -W ignore::Warning src/train.py --rep $part --model $MODEL_CONFIG \
+           --dataset $DATASET_CONFIG --gpus 0 &
+   done
+   wait
 done
 python -W ignore::Warning src/evaluate.py --model $MODEL_CONFIG --dataset $DATASET_CONFIG
