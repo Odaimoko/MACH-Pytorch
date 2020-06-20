@@ -25,6 +25,7 @@ class XCDataset(Dataset):
         """
         assert type in ['tr', 'val', 'te']
         self.name = data_cfg['name']
+        self.prefix = data_cfg['prefix']
         self.ori_dim = data_cfg['ori_dim']
         self.dest_dim = model_cfg['dest_dim']
         self.use_feature_hash = model_cfg['is_feat_hash']
@@ -36,7 +37,7 @@ class XCDataset(Dataset):
         # load hash results
         record_dir = data_cfg["record_dir"]
         feat_path = os.path.join(record_dir, "_".join(
-            [self.name, str(self.ori_dim), str(self.dest_dim)]))  # Bibtex_1836_200
+            [self.prefix, str(self.ori_dim), str(self.dest_dim)]))  # Bibtex_1836_200
         self.feat_mapping = get_feat_hash(feat_path, rep)  # diff each rep
         
         # load data
@@ -90,7 +91,7 @@ class XCDataset(Dataset):
     def change_feat_map(self, rep):
         record_dir = self.data_cfg["record_dir"]
         feat_path = os.path.join(record_dir, "_".join(
-            [self.name, str(self.ori_dim), str(self.dest_dim)]))  # Bibtex_1836_200
+            [self.prefix, str(self.ori_dim), str(self.dest_dim)]))  # Bibtex_1836_200
         self.feat_mapping = get_feat_hash(feat_path, rep)  # diff each rep
     
     def __len__(self):
