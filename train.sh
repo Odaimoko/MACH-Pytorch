@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-while getopts 'm:d:' c; do
+while getopts 'm:d:c:' c; do
     case $c in
     m) MODEL=$OPTARG ;;
     d) DATASET=$OPTARG ;;
+    c) COST=$OPTARG ;;
     esac
 done
-
 if [ -z $MODEL ] || [ -z $DATASET ]; then
     echo "Need to input model and dataset"
     exit
@@ -34,9 +34,22 @@ for ((i = 0; i < 8; i++)); do
        part=$(($i * 4 + $j))
        echo $part
        export CUDA_VISIBLE_DEVICES=$j
-       python -W ignore::Warning src/train.py --rep $part --model $MODEL_CONFIG \
-           --dataset $DATASET_CONFIG --gpus 0 &
+       if [ -z $COST ]; then
+           echo nocost
+           python -W ignore::Warning src/train.py --rep $part --model $MODEL_CONFIG \
+               --dataset $DATASET_CONFIG --gpus 0 &
+       else
+           echo heicost
+           python -W ignore::Warning src/train.py --rep $part --model $MODEL_CONFIG \
+               --dataset $DATASET_CONFIG --gpus 0  --cost &
+       fi
    done
    wait
 done
-python -W ignore::Warning src/evaluate.py --model $MODEL_CONFIG --dataset $DATASET_CONFIG
+if [ -z $COST ]; then
+   echo noevalcost
+   python -W ignore::Warning src/evaluate.py --model $MODEL_CONFIG --dataset $DATASET_CONFIG
+else
+   echo eval cost
+   python -W ignore::Warning src/evaluate.py --model $MODEL_CONFIG --dataset $DATASET_CONFIG --cost
+fi

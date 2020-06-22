@@ -36,11 +36,12 @@ def log_time(*text, record = None):
 
 
 # ─── TRAINING AND EVALUATION ────────────────────────────────────────────────────
-def get_model_dir(data_cfg, model_cfg, rep):
+def get_model_dir(data_cfg, model_cfg, a):
     return os.path.join(model_cfg["model_dir"], data_cfg["prefix"], "_".join([
         "B", str(model_cfg["b"]), "R", str(model_cfg["r"]), "feat", str(model_cfg["dest_dim"]),
         "hidden", str(model_cfg['hidden']),
-        "rep", "%02d" % rep
+        "cost" if a.cost else "",
+        "rep", "%02d" % a.rep,
     ]))
 
 
@@ -83,7 +84,7 @@ def compute_scores(model, loader, label_mapping = None, b = None):
     :return: gt & pred numpy ndarray: num_instances x num_labels. loss: scalar
     :return: mAP: scalar
     """
-    
+    model.eval()
     cuda = torch.cuda.is_available()
     torch.cuda.empty_cache()
     if cuda and not isinstance(model, torch.nn.DataParallel) and not model.is_cuda():
