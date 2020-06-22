@@ -100,6 +100,8 @@ def train(data_cfg, model_cfg, a, gpus, train_loader, val_loader):
         weights = get_hashed_label_weight(label_mapping, b)
     else:
         weights = torch.ones(b)
+    if cuda:
+        weights=weights.cuda()
     label_mapping = torch.from_numpy(label_mapping)
     loss_func = torch.nn.BCEWithLogitsLoss(weight = weights)
     
