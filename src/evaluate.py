@@ -19,8 +19,9 @@ def get_args():
     p.add_argument("--gpus", '-g', dest = "gpus", type = str, required = False, default = "0",
                    help = "A string that specifies which GPU you want to use, split by comma. Eg 0,1")
     
-    p.add_argument("--cost", '-c', dest = "cost", required = False, action = 'store_true',
-                   help = "Use cost-sensitive model or not.")
+    p.add_argument("--cost", '-c', dest = "cost", type = str, required = False, default = '',
+                   help = "Use cost-sensitive model or not. Should be in [hashed, original]. "
+                          "Default empty string, which indicates that no cost-sensitive is used.")
     p.add_argument("--type", '-t', dest = "type", type = str, required = False, default = "all",
                    help = """Evaluation type. Should be 'all'(default) and/or 'trim_eval', split by comma. Eg. 'all,trim_eval'. If it is 'trim_eval', the rate parameter should be specified.
                    'all': Evaluate normally. If the 'trimmed' field in data config file is true, the code will automatically map the rest of the labels back to the orginal ones.

@@ -22,8 +22,9 @@ def get_args():
                    help = "Path to the data config yaml file.")
     p.add_argument("--gpus", '-g', dest = "gpus", type = str, required = False, default = "0",
                    help = "A string that specifies which GPU you want to use, split by comma. Eg 0,1. Default 0.")
-    p.add_argument("--cost", '-c', dest = "cost",  required = False, action = 'store_true',
-                   help = "Use cost-sensitive training or not.")
+    p.add_argument("--cost", '-c', dest = "cost", type = str, required = False, default = '',
+                   help = "Use cost-sensitive training or not. Should be in [hashed, original]. "
+                          "Default empty string, which indicates that no cost-sensitive is used.")
     return p.parse_args()
 
 
@@ -37,7 +38,8 @@ def get_hashed_label_weight(label_mapping, b):
     for k, v in m_count.items():
         m_count_tensor[k] = v
     m_count_tensor[m_count_tensor == 0] = float("-inf")
-    return m_count_tensor.max() / m_count_tensor
+    w = m_count_tensor.max() / m_count_tensor
+    return w
 
 
 def train(data_cfg, model_cfg, a, gpus, train_loader, val_loader):
@@ -96,12 +98,12 @@ def train(data_cfg, model_cfg, a, gpus, train_loader, val_loader):
     label_path = os.path.join(record_dir, "_".join(
         [prefix, str(ori_labels), str(b), str(R)]))  # Bibtex_159_100_32
     _, label_mapping, _ = get_label_hash(label_path, rep)
-    if a.cost:
+    if a.cost == 'hashed':
         weights = get_hashed_label_weight(label_mapping, b)
     else:
         weights = torch.ones(b)
     if cuda:
-        weights=weights.cuda()
+        weights = weights.cuda()
     label_mapping = torch.from_numpy(label_mapping)
     loss_func = torch.nn.BCEWithLogitsLoss(weight = weights)
     

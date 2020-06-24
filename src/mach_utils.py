@@ -23,13 +23,14 @@ def log_time(*text, record = None):
         @wraps(func)
         def impl(*args, **kw):
             start = time.perf_counter()
-            res=func(*args, **kw)
+            res = func(*args, **kw)
             end = time.perf_counter()
             r = print if not record else record
             t = (func.__name__,) if not text else text
             # print(r, t)
             r(" ".join(t) + " " + "Time elapsed: %.3f s." % (end - start))
             return res
+        
         return impl
     
     return real_deco
@@ -37,12 +38,14 @@ def log_time(*text, record = None):
 
 # ─── TRAINING AND EVALUATION ────────────────────────────────────────────────────
 def get_model_dir(data_cfg, model_cfg, a):
-    return os.path.join(model_cfg["model_dir"], data_cfg["prefix"], "_".join([
-        "B", str(model_cfg["b"]), "R", str(model_cfg["r"]), "feat", str(model_cfg["dest_dim"]),
-        "hidden", str(model_cfg['hidden']),
-        "cost" if a.cost else "",
-        "rep", "%02d" % a.rep,
-    ]))
+    last = []
+    last += ["B", str(model_cfg["b"]), "R", str(model_cfg["r"]), "feat", str(model_cfg["dest_dim"]), "hidden",
+             str(model_cfg['hidden']), ]
+    if a.cost:
+        last += ["cost" + a.cost]
+    last += ["rep", "%02d" % a.rep, ]
+    s = os.path.join(model_cfg["model_dir"], data_cfg["prefix"], "_".join(last))
+    return s
 
 
 def get_mapped_labels(y, label_mapping, b):
@@ -75,7 +78,7 @@ class AverageMeter(object):
 
 
 # @log_time( record = logging.info)
-def compute_scores(model, loader, label_mapping = None, b = None):
+def compute_scores(model, loader, label_mapping = None, b = None, weight = None):
     """
         Get all scores. For the sake of inverse propensity, we need to first collect all labels.
         TODO: -  of course we can compute it in advance
@@ -91,7 +94,10 @@ def compute_scores(model, loader, label_mapping = None, b = None):
         model = model.cuda()
     gt = []
     scores = []
-    loss_func = torch.nn.BCEWithLogitsLoss()
+    if weight:
+        loss_func = torch.nn.BCEWithLogitsLoss(weight = weight)
+    else:
+        loss_func = torch.nn.BCEWithLogitsLoss()
     loss_meter = AverageMeter()
     map_meter = meter.mAPMeter()
     with torch.no_grad():
@@ -106,7 +112,7 @@ def compute_scores(model, loader, label_mapping = None, b = None):
             out = model(X)
             if label_mapping is not None:
                 loss_meter.update(loss_func(out, y), X.shape[0])
-            out = F.softmax(out, 1)
+            out = F.sigmoid(out)
             if label_mapping is not None:
                 map_meter.add(out.detach(), y)  # map_meter uses softmax scores -
             # or whatever? scoring function is monotonic
@@ -132,7 +138,7 @@ def evaluate_scores(gt, scores, model_cfg):
                              remove_invalid = False)
     map_meter = meter.mAPMeter()
     
-    map_meter.add(scores,gt.todense())
+    map_meter.add(scores, gt.todense())
     prec, ndcg, PSprec, PSnDCG = acc.eval(scores, model_cfg["at_k"])
     d = {
         "prec": prec,
