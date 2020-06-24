@@ -129,6 +129,9 @@ if __name__ == "__main__":
     gt = None
     logging.info("Evaluating config %s" % (a.model))
     logging.info("Dataset config %s" % (a.dataset))
+    if a.cost:
+        logging.info("Evaluating cost-sensitive method: %s" % (a.cost))
+    
     for r in tqdm.tqdm(range(R)):
         gt, ori_pred = single_rep(data_cfg, model_cfg, r)
         # use feature hashing to map back

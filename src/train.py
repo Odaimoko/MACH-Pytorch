@@ -37,8 +37,11 @@ def get_hashed_label_weight(label_mapping, b):
     m_count_tensor = torch.zeros(b)
     for k, v in m_count.items():
         m_count_tensor[k] = v
+    total = m_count_tensor.sum()
+    rest = total-m_count_tensor
     m_count_tensor[m_count_tensor == 0] = float("-inf")
-    w = m_count_tensor.max() / m_count_tensor
+    w = rest / m_count_tensor
+    # w = w / w.sum()
     return w
 
 
@@ -140,7 +143,7 @@ def train(data_cfg, model_cfg, a, gpus, train_loader, val_loader):
         
         logging.info("EVALUATION ON VAL SET")
         l, val_d, m = evaluate_single(
-            model, val_loader, model_cfg, label_mapping)
+            model, val_loader, model_cfg, label_mapping, weights)
         log_eval_results(val_d)
         logging.info("Loss ON VAL SET: %.3f, mAP: %.3f" % (l, m))
         

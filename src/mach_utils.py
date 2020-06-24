@@ -8,7 +8,6 @@ import numpy as np
 from sklearn.utils import murmurhash3_32 as mmh3
 import yaml
 import torch
-import torch.nn.functional as F
 from xclib.evaluation import xc_metrics
 import scipy
 from torchnet import meter
@@ -94,7 +93,7 @@ def compute_scores(model, loader, label_mapping = None, b = None, weight = None)
         model = model.cuda()
     gt = []
     scores = []
-    if weight:
+    if weight is not None:
         loss_func = torch.nn.BCEWithLogitsLoss(weight = weight)
     else:
         loss_func = torch.nn.BCEWithLogitsLoss()
@@ -112,7 +111,7 @@ def compute_scores(model, loader, label_mapping = None, b = None, weight = None)
             out = model(X)
             if label_mapping is not None:
                 loss_meter.update(loss_func(out, y), X.shape[0])
-            out = F.sigmoid(out)
+            out = torch.sigmoid(out)
             if label_mapping is not None:
                 map_meter.add(out.detach(), y)  # map_meter uses softmax scores -
             # or whatever? scoring function is monotonic
@@ -168,12 +167,12 @@ def log_eval_results(d):
         logging.info(l)
 
 
-def evaluate_single(model: torch.nn.Module, loader, model_cfg, label_mapping):
+def evaluate_single(model: torch.nn.Module, loader, model_cfg, label_mapping, weight):
     """
         Return quite a few measurement scores, only for a single repetition
     """
     # p@k, psp@k, ndcg, psndcg, loss, map
-    gt, pred, loss, mAP = compute_scores(model, loader, label_mapping, model_cfg["b"])
+    gt, pred, loss, mAP = compute_scores(model, loader, label_mapping, model_cfg["b"], weight)
     d = evaluate_scores(gt, pred, model_cfg)
     return loss, d, mAP
 

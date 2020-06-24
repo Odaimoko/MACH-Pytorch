@@ -41,7 +41,7 @@ for ((i = 0; i < 8; i++)); do
        else
            echo heicost
            python -W ignore::Warning src/train.py --rep $part --model $MODEL_CONFIG \
-               --dataset $DATASET_CONFIG --gpus 0  --cost &
+               --dataset $DATASET_CONFIG --gpus 0  --cost $COST &
        fi
    done
    wait
@@ -51,5 +51,5 @@ if [ -z $COST ]; then
    python -W ignore::Warning src/evaluate.py --model $MODEL_CONFIG --dataset $DATASET_CONFIG
 else
    echo eval cost
-   python -W ignore::Warning src/evaluate.py --model $MODEL_CONFIG --dataset $DATASET_CONFIG --cost
+   python -W ignore::Warning src/evaluate.py --model $MODEL_CONFIG --dataset $DATASET_CONFIG --cost $COST
 fi
