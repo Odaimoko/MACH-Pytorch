@@ -50,7 +50,8 @@ In short, MACH use hash functions to map `L` labels into `B` buckets. In total t
 
 For evaluation, [pyxclib](https://github.com/kunaldahiya/pyxclib) is need. Currently it has a bug which cause precision to be incorrectly calculated. See this [issue](https://github.com/kunaldahiya/pyxclib/issues/5) and change the code.
 
-> Change `indices` to `indices[:, ::-1]` in [_get_top_k](https://github.com/kunaldahiya/pyxclib/blob/e1100a4013ad9edbfde1524093916a4d870d9a3e/xclib/evaluation/xc_metrics.py#L117).
+> Add ` indices = indices[:, ::-1]`  after these two lines in `_get_top_k`: [here](https://github.com/kunaldahiya/pyxclib/blob/e1100a4013ad9edbfde1524093916a4d870d9a3e/xclib/evaluation/xc_metrics.py#L113) and [here](https://github.com/kunaldahiya/pyxclib/blob/e1100a4013ad9edbfde1524093916a4d870d9a3e/xclib/evaluation/xc_metrics.py#L97).
+
 
 For calculate mAP (mean average precision), torchnet is used. It has a bug ([issue](https://github.com/pytorch/tnt/issues/134)). Please change `return 0` [here](https://github.com/pytorch/tnt/blob/013e9fed1bebb6b0e9ef89fd47e5edd017c60cfe/torchnet/meter/apmeter.py#L109) to `return torch.tensor([0.])`.
 

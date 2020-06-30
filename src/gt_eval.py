@@ -16,8 +16,6 @@ def get_args():
                    help = "Path to the model config yaml file.")
     p.add_argument("--dataset", '-d', dest = "dataset", type = str, required = True,
                    help = "Path to the data config yaml file.")
-    p.add_argument("--gpus", '-g', dest = "gpus", type = str, required = False, default = "0",
-                   help = "A string that specifies which GPU you want to use, split by comma. Eg 0,1")
     
     p.add_argument("--cost", '-c', dest = "cost", type = str, required = False, default = '',
                    help = "Use cost-sensitive model or not. Should be in [hashed, original]. "
@@ -46,25 +44,21 @@ def get_inv_hash(counts, inv_mapping, j):
 
 
 def single_rep(data_cfg, model_cfg, r):
-    # load ground truth
-    test_set.change_feat_map(r)
-    a.__dict__['rep'] = r
-    model_dir = get_model_dir(data_cfg, model_cfg, a)
     # load mapping
     counts, label_mapping, inv_mapping = get_label_hash(label_path, r)
-    label_mapping = torch.from_numpy(label_mapping)
-    # load models
-    best_param = os.path.join(model_dir, model_cfg["best_file"])
-    preload_path = model_cfg["pretrained"] if model_cfg["pretrained"] else best_param
-    if os.path.exists(preload_path):
-        meta_info = torch.load(preload_path)
-        model.load_state_dict(meta_info['model'])
-    else:
-        raise FileNotFoundError(
-            "Model {} does not exist.".format(preload_path))
-    # predict. gt: original label. p: hashed.
-    gt, p, _, _ = compute_scores(model, test_loader)
-    return gt, p[:, label_mapping]
+    label_mapping = torch.from_numpy(label_mapping).long()
+    # gt: hashed label.
+    gt = []
+    pred = []
+    for i, data in enumerate(test_loader):
+        X, y = data
+        gt.append(y)
+        y = get_mapped_labels(y, label_mapping, b)
+        pred.append(y)
+    gt = scipy.sparse.csr_matrix(torch.cat(gt).to_dense().numpy())
+    pred = torch.cat(pred).numpy()
+    
+    return gt, pred[:, label_mapping]
 
 
 def map_trimmed_back(scores, data_dir, prefix, ori_labels):
@@ -88,7 +82,6 @@ def sanity_check(a):
 
 if __name__ == "__main__":
     a = get_args()
-    gpus = [int(i) for i in a.gpus.split(",")]
     
     data_cfg = get_config(a.dataset)
     model_cfg = get_config(a.model)
@@ -97,8 +90,6 @@ if __name__ == "__main__":
     logging.basicConfig(level = logging.INFO,
                         format = '%(asctime)s %(levelname)-8s %(message)s', datefmt = '%Y-%m-%d %H:%M:%S',
                         handlers = [
-                            logging.FileHandler(
-                                os.path.join(model_dir, log_file)),
                             logging.StreamHandler()
                         ])
     
@@ -113,15 +104,10 @@ if __name__ == "__main__":
     data_dir = os.path.join("data", name)
     
     # load dataset
-    test_file = os.path.join(data_dir, prefix + "_test.txt")
+    test_file = os.path.join(data_dir, name + "_test.txt")
     test_set = XCDataset(test_file, 0, data_cfg, model_cfg, 'te')
     test_loader = torch.utils.data.DataLoader(
-        test_set, batch_size = model_cfg['batch_size'])
-    # construct model
-    layers = [dest_dim] + model_cfg['hidden'] + [b]
-    model = FCNetwork(layers)
-    if cuda:
-        model = torch.nn.DataParallel(model, device_ids = gpus).cuda()
+        test_set, batch_size = model_cfg['batch_size'], shuffle = False)
     label_path = os.path.join(record_dir, "_".join(
         [prefix, str(num_labels), str(b), str(R)]))  # Bibtex_159_100_32
     
@@ -133,19 +119,14 @@ if __name__ == "__main__":
         logging.info("Evaluating cost-sensitive method: %s" % (a.cost))
     
     for r in tqdm.tqdm(range(R)):
-        gt, ori_pred = single_rep(data_cfg, model_cfg, r)
+        gt, pred = single_rep(data_cfg, model_cfg, r)
         # use feature hashing to map back
-        pred_avg_meter.update(ori_pred, 1)
+        pred_avg_meter.update(pred, 1)
     
     # map trimmed labels back to original ones
     scores = pred_avg_meter.avg
     types = a.type.split(',')
     if 'all' in types:
-        if data_cfg['trimmed']:
-            # if use trim_eval or only_tail, data_cfg['trimmed'] should be false
-            scores = map_trimmed_back(
-                scores, data_dir, prefix, data_cfg['ori_labels'])
-        
         if gt is None:
             raise Exception("You must have at least one model.")
         else:
