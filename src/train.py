@@ -39,9 +39,10 @@ def get_hashed_label_weight(label_mapping, b):
         m_count_tensor[k] = v
     total = m_count_tensor.sum()
     rest = total-m_count_tensor
-    m_count_tensor[m_count_tensor == 0] = float("-inf")
+    m_count_tensor[m_count_tensor == 0] = m_count_tensor[m_count_tensor != 0] .min()
+    # m_count_tensor[m_count_tensor == 0] = float("-inf")
     w = rest / m_count_tensor
-    # w = w / w.sum()
+    w = w / w.sum()
     return w
 
 
