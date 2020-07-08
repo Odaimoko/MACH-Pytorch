@@ -68,7 +68,7 @@ if __name__ == "__main__":
         counts, label_mapping, inv_mapping = get_label_hash(label_path, r)
         mapped_labels = label_mapping[labels_flatten]
         m_count = Counter(mapped_labels)
-        zero_count = num_labels - len(m_count)
+        zero_count = b - len(m_count)
         # hashed label -> hashed count
         mapped_unsorted_count = np.zeros(b, dtype = np.int32)
         for k, v in m_count.items():
@@ -78,10 +78,11 @@ if __name__ == "__main__":
         m_sorted_count = np.flip(np.sort(mapped_unsorted_count))
         
         plt.clf()
-        plt.plot(range(1, len(ori_label_mapped_count) + 1), ori_label_mapped_count[sorted_idx])
-        plt.plot(range(1, len(unsorted_count) + 1), unsorted_count[sorted_idx])
+        
+        # plt.plot(range(1, len(ori_label_mapped_count) + 1), ori_label_mapped_count[sorted_idx])
+        # plt.plot(range(1, len(unsorted_count) + 1), unsorted_count[sorted_idx])
         # plt.plot(range(1, len(mapped_unsorted_count) + 1), mapped_unsorted_count)
-        # plt.plot(range(1, len(m_sorted_count) + 1), m_sorted_count)
+        plt.plot(range(1, len(m_sorted_count) + 1), m_sorted_count)
         plt.xlabel("Label")
         # plt.yscale('log')
         plt.ylabel("Count")
@@ -93,7 +94,7 @@ if __name__ == "__main__":
         less_than = [len([c for c in m_sorted_count if c <= t]) for t in thres]
         print(
             "%s\n\t%d (%.2f%%) out of %d labels with no instances, \n\t "
-            % (file, zero_count, zero_count * 100 / num_labels, num_labels) +
+            % (file, zero_count, zero_count * 100 / b, b) +
             ", ".join(["%d (%.2f%%) fewer than %d" % (num, 100 * num / num_labels, t)
                        for num, t in zip(less_than, thres)]) +
             "\n\t Max: %d, Min: %d, Avg: %.2f, Std: %.2f" % (

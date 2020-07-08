@@ -18,10 +18,12 @@ best_file: "best_ckpt.pkl"
 latest_file: "final_ckpt.pkl"
 batch_size: 1280 # training and testing batch size
 begin_epoch: 0
-end_epoch: 60
+end_epoch: 120
 lr: .001 # learning rate
 lr_step: # lr reduction at these epochs
   - 30
+  - 60
+  - 90
 lr_factor: .1 # lr reduction rate
 weight_decay: .99
 shuffle: true
