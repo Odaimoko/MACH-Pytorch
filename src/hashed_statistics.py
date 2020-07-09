@@ -89,7 +89,7 @@ if __name__ == "__main__":
         file = os.path.join(label_path, 'rep_%02d_label_count' % (r))
         
         plt.title(file)
-        plt.savefig(file + '.svg')
+        plt.savefig(file + '.pdf')
         
         less_than = [len([c for c in m_sorted_count if c <= t]) for t in thres]
         print(

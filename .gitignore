@@ -140,3 +140,4 @@ config/data_trim
 .*.xlsx
 bibtrimeval.txt
 losstry.py
+logs/
