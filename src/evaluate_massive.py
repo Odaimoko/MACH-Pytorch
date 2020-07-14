@@ -8,6 +8,9 @@ import json
 from typing import Dict, List
 from trim_labels import get_discard_set
 from torchnet.meter import APMeter
+from xclib.evaluation import xc_metrics
+from xclib.data import data_utils
+from torchnet import meter
 
 
 def get_args():
@@ -110,6 +113,7 @@ if __name__ == "__main__":
     prefix = data_cfg['prefix']
     record_dir = data_cfg["record_dir"]
     data_dir = os.path.join("data", name)
+    K = model_cfg['at_k']
     
     # load dataset
     test_file = os.path.join(data_dir, prefix + "_test.txt")
@@ -131,10 +135,21 @@ if __name__ == "__main__":
     if a.cost:
         logging.info("Evaluating cost-sensitive method: %s" % (a.cost))
     
+    # get inverse propensity
+    
+    features, labels, num_samples, num_features, num_labels = data_utils.read_data(test_file)
+    inv_propen = xc_metrics.compute_inv_propesity(labels, model_cfg["ps_A"], model_cfg["ps_B"])
+    
+    scaled_eval_flags = []
+    eval_flags = []
+    ps_eval_flags = []
+    map_meter = meter.mAPMeter()
+    
     for i, data in tqdm.tqdm(enumerate(zip(*test_loaders))):
         pred_avg_meter = AverageMeter()
         for r in range(R):
             X, y = data[r]
+            bs = X.shape[0]
             X = X.to_dense()
             if cuda:
                 X = X.cuda()
@@ -161,10 +176,49 @@ if __name__ == "__main__":
         gt = y
         if gt.is_sparse:
             gt = gt.coalesce()
-            gt = scipy.sparse.coo_matrix((gt.values().cpu().numpy(), gt.indices().cpu().numpy()))
+            gt = scipy.sparse.coo_matrix((gt.values().cpu().numpy(),
+                                          gt.indices().cpu().numpy()),
+                                         shape = (bs, num_labels))
         else:
             gt = scipy.sparse.coo_matrix(gt.cpu().numpy())
+        # only a batch of eval flags
+        scores = pred_avg_meter.avg
+        map_meter.add(scores, gt.todense())
+        
+        indices, true_labels, ps_indices, inv_psp = xc_metrics. \
+            _setup_metric(scores, gt, inv_propen)
+        eval_flag = xc_metrics._eval_flags(indices, true_labels, None)
+        ps_eval_flag = xc_metrics._eval_flags(ps_indices, true_labels, inv_psp)
+        scaled_eval_flag = np.multiply(inv_psp[indices], eval_flag)
+        eval_flags.append(eval_flag)
+        ps_eval_flags.append(ps_eval_flag)
+        scaled_eval_flags.append(scaled_eval_flag)
     
+    # eval all
+    scaled_eval_flags = np.concatenate(scaled_eval_flags)
+    eval_flags = np.concatenate(eval_flags)
+    ps_eval_flags = np.concatenate(ps_eval_flags)
+    
+    ndcg_denominator = np.cumsum(
+        1 / np.log2(np.arange(1, num_labels + 1) + 1))
+    _total_pos = np.asarray(
+        labels.sum(axis = 1),
+        dtype = np.int32)
+    
+    n = ndcg_denominator[_total_pos - 1]
+    prec = xc_metrics._precision(eval_flags, K)
+    ndcg = xc_metrics._ndcg(eval_flags, n, K)
+    
+    PSprec = xc_metrics._precision(scaled_eval_flags, K) / xc_metrics._precision(ps_eval_flags, K)
+    PSnDCG = xc_metrics._ndcg(scaled_eval_flags, n, K) / xc_metrics._ndcg(ps_eval_flags, n, K)
+    d = {
+        "prec": prec,
+        "ndcg": ndcg,
+        "psp": PSprec,
+        "psn": PSnDCG,
+        "mAP": [map_meter.value()]
+    }
+    log_eval_results(d)
     # map trimmed labels back to original ones
     # scores = pred_avg_meter.avg
     # types = a.type.split(',')
