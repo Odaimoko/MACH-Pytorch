@@ -124,7 +124,7 @@ def compute_scores(model, loader, label_mapping = None, b = None, weight = None)
     scores = torch.cat(scores)
     if gt.is_sparse:
         gt = gt.coalesce()
-        gt = scipy.sparse.coo_matrix((gt.values().numpy(), gt.indices().numpy()))
+        gt = scipy.sparse.coo_matrix((gt.values().cpu().numpy(), gt.indices().cpu().numpy()))
     else:
         gt = scipy.sparse.coo_matrix(gt.cpu().numpy())
     scores = scores.numpy()
