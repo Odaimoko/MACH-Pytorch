@@ -119,7 +119,7 @@ def compute_scores(model, loader, label_mapping = None, b = None, weight = None)
             # or whatever? scoring function is monotonic
             # append cuda tensor
             gt.append(y)
-            scores.append(out)
+            scores.append(out.cpu().detach())
     gt = torch.cat(gt)
     scores = torch.cat(scores)
     if gt.is_sparse:
@@ -127,7 +127,7 @@ def compute_scores(model, loader, label_mapping = None, b = None, weight = None)
         gt = scipy.sparse.coo_matrix((gt.values().numpy(), gt.indices().numpy()))
     else:
         gt = scipy.sparse.coo_matrix(gt.cpu().numpy())
-    scores = scores.cpu().detach().numpy()
+    scores = scores.numpy()
     mAP = map_meter.value()
     return gt, scores, loss_meter.avg, mAP
 
