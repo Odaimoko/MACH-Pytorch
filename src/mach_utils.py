@@ -10,6 +10,7 @@ import yaml
 import torch
 from xclib.evaluation import xc_metrics
 import scipy
+import scipy.sparse
 from torchnet import meter
 import logging
 
@@ -104,6 +105,7 @@ def compute_scores(model, loader, label_mapping = None, b = None, weight = None)
             X, y = data
             X = X.to_dense()
             if label_mapping is not None:
+                # map original to hashed labels
                 y = get_mapped_labels(y, label_mapping, b)
             if cuda:
                 X = X.cuda()
@@ -121,10 +123,10 @@ def compute_scores(model, loader, label_mapping = None, b = None, weight = None)
     gt = torch.cat(gt)
     scores = torch.cat(scores)
     if gt.is_sparse:
-        gt = gt.to_dense()
-    if scores.is_sparse:
-        scores = scores.to_dense()
-    gt = scipy.sparse.csr_matrix(gt.cpu().numpy())
+        gt = gt.coalesce()
+        gt = scipy.sparse.coo_matrix((gt.values().numpy(), gt.indices().numpy()))
+    else:
+        gt = scipy.sparse.coo_matrix(gt.cpu().numpy())
     scores = scores.cpu().detach().numpy()
     mAP = map_meter.value()
     return gt, scores, loss_meter.avg, mAP
@@ -175,25 +177,6 @@ def evaluate_single(model: torch.nn.Module, loader, model_cfg, label_mapping, we
     gt, pred, loss, mAP = compute_scores(model, loader, label_mapping, model_cfg["b"], weight)
     d = evaluate_scores(gt, pred, model_cfg)
     return loss, d, mAP
-
-
-def evaluate_all(models: List, loader, model_cfg):
-    """
-        Use all models and average their results.
-        For now, sequentially run.
-    """
-    pred = []
-    gt = None
-    for m in models:
-        gt, p, _, _ = compute_scores(m, loader)
-        pred.append(p)  # each = num_instances x num_labels
-    if gt is None:
-        raise Exception("You must have at least one model.")
-    else:
-        pred = np.stack(pred)  # R x num_ins x num_lab
-        scores = pred.mean(axis = 0)
-        d = evaluate_scores(gt, scores, model_cfg)
-        return d
 
 
 # ─── PREPROCESS ─────────────────────────────────────────────────────────────────
