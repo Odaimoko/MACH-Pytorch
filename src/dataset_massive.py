@@ -3,6 +3,8 @@ import os
 import torch
 import numpy as np
 from mach_utils import get_feat_hash
+import time, logging
+
 
 # TODO: for small dataset only, when we can load the txt file into mem
 
@@ -15,11 +17,13 @@ class XCDataset(Dataset):
         :param model_cfg:
         :param type: ['tr', 'val', 'te']. Train/val: use a portion of dataset. Test: Use all.
         """
+        start=time.perf_counter()
         assert type in ['tr', 'val', 'te']
         self.name = data_cfg['name']
         self.prefix = data_cfg['prefix']
         self.ori_dim = data_cfg['ori_dim']
         self.dest_dim = model_cfg['dest_dim']
+        self.use_feature_hash = model_cfg['is_feat_hash']
         self.ori_labels = data_cfg['ori_labels']
         self.num_labels = data_cfg['num_labels']
         self.dest_labels = model_cfg['b']
@@ -61,6 +65,9 @@ class XCDataset(Dataset):
         
         else:
             print("Dataset %s does not exist." % (txt_path))
+        end = time.perf_counter()
+        
+        logging.info("Dataset Loaded: %.3f s." % (end - start))
         return
     
     def __getitem__(self, i):

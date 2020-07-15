@@ -3,7 +3,7 @@ import logging
 from argparse import ArgumentParser
 from fc_network import FCNetwork
 import tqdm
-from dataset_massive import XCDataset
+from dataset import XCDataset,XCDataset_massive
 import json
 from typing import Dict, List
 from trim_labels import get_discard_set
@@ -122,7 +122,7 @@ if __name__ == "__main__":
     # load dataset
     test_file = os.path.join(data_dir, prefix + "_test.txt")
     # this will take a lot of space!!!!!!
-    test_set = XCDataset(test_file, 0, data_cfg, model_cfg, 'te')
+    test_set = XCDataset_massive(test_file, 0, data_cfg, model_cfg, 'te')
     # test_sets = [XCDataset(test_file, r, data_cfg, model_cfg, 'te') for r in range(R)]
     test_loader = torch.utils.data.DataLoader(
         test_set, batch_size = a.bs)

@@ -3,9 +3,10 @@ import os
 import torch
 import numpy as np
 from mach_utils import get_feat_hash
+import time
+import  logging
 
 # TODO: for small dataset only, when we can load the txt file into mem
-
 
 
 class XCDataset(Dataset):
@@ -17,6 +18,7 @@ class XCDataset(Dataset):
         :param model_cfg:
         :param type: ['tr', 'val', 'te']. Train/val: use a portion of dataset. Test: Use all.
         """
+        start=time.perf_counter()
         assert type in ['tr', 'val', 'te']
         self.name = data_cfg['name']
         self.prefix = data_cfg['prefix']
@@ -65,6 +67,8 @@ class XCDataset(Dataset):
         
         else:
             print("Dataset %s does not exist." % (txt_path))
+        end=time.perf_counter()
+        logging.info("Dataset Loaded: %.3f s." % (end - start))
         return
     
     def __getitem__(self, i):
@@ -90,3 +94,16 @@ class XCDataset(Dataset):
     
     def __len__(self):
         return len(self.meta_info)
+
+class XCDataset_massive(XCDataset):
+    def __getitem__(self, i):
+        """
+            Use hashed results to serve data
+        """
+        y, idx_values_pair = self.meta_info[i]
+        idx = [int(i) for i, j in idx_values_pair]
+        mapped_idx = np.array(idx)
+        mapped_idx = np.expand_dims(mapped_idx, 0)
+        values = torch.tensor([float(j) for i, j in idx_values_pair])
+        x = torch.sparse_coo_tensor(mapped_idx, values, size = (self.ori_dim,))
+        return x, y
