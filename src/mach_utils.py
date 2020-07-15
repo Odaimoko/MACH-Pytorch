@@ -139,7 +139,7 @@ def evaluate_scores(gt, scores, model_cfg):
                              remove_invalid = False)
     map_meter = meter.mAPMeter()
     
-    map_meter.add(scores, gt.todense())
+    # map_meter.add(scores, gt.todense())
     prec, ndcg, PSprec, PSnDCG = acc.eval(scores, model_cfg["at_k"])
     d = {
         "prec": prec,
@@ -232,6 +232,12 @@ def get_config(path) -> Dict:
             return yaml.safe_load(f)
     else:
         raise FileNotFoundError(path)
+
+def get_feat_hash(dir_path, r):
+    """
+        load feature mapping
+    """
+    return np.load(os.path.join(dir_path, "_".join(["feature_hash", str(r)]) + ".npy"))
 
 
 def get_label_hash(dir_path, r):

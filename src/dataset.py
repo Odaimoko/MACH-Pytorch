@@ -2,16 +2,10 @@ from torch.utils.data import Dataset
 import os
 import torch
 import numpy as np
-
+from mach_utils import get_feat_hash
 
 # TODO: for small dataset only, when we can load the txt file into mem
 
-
-def get_feat_hash(dir_path, r):
-    """
-        load feature mapping
-    """
-    return np.load(os.path.join(dir_path, "_".join(["feature_hash", str(r)]) + ".npy"))
 
 
 class XCDataset(Dataset):
