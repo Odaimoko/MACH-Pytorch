@@ -121,12 +121,15 @@ def compute_scores(model, loader, label_mapping = None, b = None, weight = None)
             gt.append(y)
             scores.append(out.cpu().detach())
     gt = torch.cat(gt)
+    num_ins, num_labels = gt.shape
     scores = torch.cat(scores)
     if gt.is_sparse:
         gt = gt.coalesce()
-        gt = scipy.sparse.coo_matrix((gt.values().cpu().numpy(), gt.indices().cpu().numpy()))
+        gt = scipy.sparse.coo_matrix((gt.values().cpu().numpy(),
+                                      gt.indices().cpu().numpy()),
+                                     shape = (num_ins, num_labels))
     else:
-        gt = scipy.sparse.coo_matrix(gt.cpu().numpy())
+        gt = scipy.sparse.coo_matrix(gt.cpu().numpy(), shape = (num_ins, num_labels))
     scores = scores.numpy()
     mAP = map_meter.value()
     return gt, scores, loss_meter.avg, mAP
@@ -232,6 +235,7 @@ def get_config(path) -> Dict:
             return yaml.safe_load(f)
     else:
         raise FileNotFoundError(path)
+
 
 def get_feat_hash(dir_path, r):
     """
