@@ -121,28 +121,29 @@ def compute_scores(model, loader, label_mapping = None, b = None, weight = None)
             gt.append(y)
             scores.append(out.cpu().detach())
     gt = torch.cat(gt)
-    num_ins, num_labels = gt.shape
-    scores = torch.cat(scores)
-    if gt.is_sparse:
-        gt = gt.coalesce()
-        gt = scipy.sparse.coo_matrix((gt.values().cpu().numpy(),
-                                      gt.indices().cpu().numpy()),
-                                     shape = (num_ins, num_labels))
-    else:
-        gt = scipy.sparse.coo_matrix(gt.cpu().numpy(), shape = (num_ins, num_labels))
+    scores = torch.cat(scores)  # scores must be dense
     scores = scores.numpy()
     mAP = map_meter.value()
     return gt, scores, loss_meter.avg, mAP
 
 
-def evaluate_scores(gt, scores, model_cfg):
-    inv_propen = xc_metrics.compute_inv_propesity(gt, model_cfg["ps_A"], model_cfg["ps_B"])
+def evaluate_scores(gt: torch.Tensor, scores, model_cfg):
+    num_ins, num_labels = gt.shape
+    if gt.is_sparse:
+        gt_np = gt.coalesce()
+        gt_np = scipy.sparse.coo_matrix((gt_np.values().cpu().numpy(),
+                                         gt_np.indices().cpu().numpy()),
+                                        shape = (num_ins, num_labels))
+    else:
+        gt_np = scipy.sparse.coo_matrix(gt.cpu().numpy(), shape = (num_ins, num_labels))
     
-    acc = xc_metrics.Metrics(true_labels = gt, inv_psp = inv_propen,
+    inv_propen = xc_metrics.compute_inv_propesity(gt_np, model_cfg["ps_A"], model_cfg["ps_B"])
+    
+    acc = xc_metrics.Metrics(true_labels = gt_np, inv_psp = inv_propen,
                              remove_invalid = False)
     map_meter = meter.mAPMeter()
     
-    # map_meter.add(scores, gt.todense())
+    map_meter.add(scores, gt.to_dense())
     prec, ndcg, PSprec, PSnDCG = acc.eval(scores, model_cfg["at_k"])
     d = {
         "prec": prec,

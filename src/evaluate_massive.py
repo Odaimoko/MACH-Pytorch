@@ -3,11 +3,10 @@ import logging
 from argparse import ArgumentParser
 from fc_network import FCNetwork
 import tqdm
-from dataset import XCDataset
+from dataset_massive import XCDataset
 import json
 from typing import Dict, List
 from trim_labels import get_discard_set
-from torchnet.meter import APMeter
 from xclib.evaluation import xc_metrics
 from xclib.data import data_utils
 from torchnet import meter
@@ -108,18 +107,22 @@ if __name__ == "__main__":
     R = model_cfg['r']
     b = model_cfg['b']
     num_labels = data_cfg["num_labels"]
+    ori_dim = data_cfg['ori_dim']
     dest_dim = model_cfg['dest_dim']
     name = data_cfg['name']
     prefix = data_cfg['prefix']
     record_dir = data_cfg["record_dir"]
     data_dir = os.path.join("data", name)
     K = model_cfg['at_k']
+    feat_path = os.path.join(record_dir, "_".join([prefix, str(ori_dim), str(dest_dim)]))
     
     # load dataset
     test_file = os.path.join(data_dir, prefix + "_test.txt")
-    test_sets = [XCDataset(test_file, r, data_cfg, model_cfg, 'te') for r in range(R)]
-    test_loaders = [torch.utils.data.DataLoader(
-        test_set, batch_size = model_cfg['batch_size']) for test_set in test_sets]
+    # this will take a lot of space!!!!!!
+    test_set = XCDataset(test_file, 0, data_cfg, model_cfg, 'te')
+    # test_sets = [XCDataset(test_file, r, data_cfg, model_cfg, 'te') for r in range(R)]
+    test_loader = torch.utils.data.DataLoader(
+        test_set, batch_size = model_cfg['batch_size'])
     # construct model
     layers = [dest_dim] + model_cfg['hidden'] + [b]
     model = FCNetwork(layers)
@@ -137,22 +140,34 @@ if __name__ == "__main__":
     
     # get inverse propensity
     
-    features, labels, num_samples, num_features, num_labels = data_utils.read_data(test_file)
+    _, labels, _, _, _ = data_utils.read_data(test_file)
     inv_propen = xc_metrics.compute_inv_propesity(labels, model_cfg["ps_A"], model_cfg["ps_B"])
-    
+    gts = []
     scaled_eval_flags = []
     eval_flags = []
     ps_eval_flags = []
     map_meter = meter.mAPMeter()
     
-    for i, data in tqdm.tqdm(enumerate(zip(*test_loaders))):
+    for i, data in enumerate(tqdm.tqdm(test_loader)):
+        print(i, 'th data')
         pred_avg_meter = AverageMeter()
+        X, gt = data
+        bs = X.shape[0]
         for r in range(R):
-            X, y = data[r]
-            bs = X.shape[0]
-            X = X.to_dense()
+            print("REP", r,end='\t')
+            x = X
+            feat_mapping = get_feat_hash(feat_path, r)
+            if model_cfg['is_feat_hash']:
+                x = x.coalesce()
+                ind = x.indices()
+                v = x.values()
+                ind[1] = torch.from_numpy(feat_mapping[ind[1]])
+                x = torch.sparse_coo_tensor(ind, values = v, size = (bs, dest_dim))
+            else:
+                pass
+            x = x.to_dense()
             if cuda:
-                X = X.cuda()
+                x = x.cuda()
             # load model
             a.__dict__['rep'] = r
             model_dir = get_model_dir(data_cfg, model_cfg, a)
@@ -169,11 +184,13 @@ if __name__ == "__main__":
                 raise FileNotFoundError(
                     "Model {} does not exist.".format(preload_path))
             # the r_th output
-            out = model(X)
-            out = torch.sigmoid(out)
+            model.eval()
+            with torch.no_grad():
+                out = model(X)
+                out = torch.sigmoid(out)
             out = out.detach().cpu().numpy()[:, label_mapping]
             pred_avg_meter.update(out, 1)
-        gt = y
+        
         if gt.is_sparse:
             gt = gt.coalesce()
             gt = scipy.sparse.coo_matrix((gt.values().cpu().numpy(),
@@ -189,12 +206,14 @@ if __name__ == "__main__":
             _setup_metric(scores, gt, inv_propen)
         eval_flag = xc_metrics._eval_flags(indices, true_labels, None)
         ps_eval_flag = xc_metrics._eval_flags(ps_indices, true_labels, inv_psp)
+        # gts.append(gt)
         scaled_eval_flag = np.multiply(inv_psp[indices], eval_flag)
         eval_flags.append(eval_flag)
         ps_eval_flags.append(ps_eval_flag)
         scaled_eval_flags.append(scaled_eval_flag)
     
     # eval all
+    # gts = np.concatenate(gts)
     scaled_eval_flags = np.concatenate(scaled_eval_flags)
     eval_flags = np.concatenate(eval_flags)
     ps_eval_flags = np.concatenate(ps_eval_flags)
