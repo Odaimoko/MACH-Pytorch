@@ -143,7 +143,7 @@ def evaluate_scores(gt: torch.Tensor, scores, model_cfg):
                              remove_invalid = False)
     map_meter = meter.mAPMeter()
     
-    map_meter.add(scores, gt.to_dense())
+    # map_meter.add(scores, gt.to_dense())
     prec, ndcg, PSprec, PSnDCG = acc.eval(scores, model_cfg["at_k"])
     d = {
         "prec": prec,
