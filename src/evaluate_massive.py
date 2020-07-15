@@ -32,6 +32,9 @@ def get_args():
     p.add_argument("--rate", '-r', dest = "rate", type = str, required = False, default = "0.1",
                    help = """If evaluation needs trimming, this parameter specifies how many labels will be trimmed, decided by cumsum.
                    Should be a string containing trimming rates split by comma. Eg '0.1,0.2'. Default '0.1'.""")
+    p.add_argument("--batch_size", '-bs', dest = "bs", type = int, required = False, default = "32",
+                   help = """Evaluation batch size.""")
+    
     return p.parse_args()
 
 
@@ -122,7 +125,7 @@ if __name__ == "__main__":
     test_set = XCDataset(test_file, 0, data_cfg, model_cfg, 'te')
     # test_sets = [XCDataset(test_file, r, data_cfg, model_cfg, 'te') for r in range(R)]
     test_loader = torch.utils.data.DataLoader(
-        test_set, batch_size = model_cfg['batch_size'])
+        test_set, batch_size = a.bs)
     # construct model
     layers = [dest_dim] + model_cfg['hidden'] + [b]
     model = FCNetwork(layers)
@@ -154,7 +157,7 @@ if __name__ == "__main__":
         X, gt = data
         bs = X.shape[0]
         for r in range(R):
-            print("REP", r,end='\t')
+            print("REP", r, end = '\t')
             x = X
             feat_mapping = get_feat_hash(feat_path, r)
             if model_cfg['is_feat_hash']:
@@ -200,7 +203,7 @@ if __name__ == "__main__":
             gt = scipy.sparse.coo_matrix(gt.cpu().numpy())
         # only a batch of eval flags
         scores = pred_avg_meter.avg
-        map_meter.add(scores, gt.todense())
+        # map_meter.add(scores, gt.todense())
         
         indices, true_labels, ps_indices, inv_psp = xc_metrics. \
             _setup_metric(scores, gt, inv_propen)
