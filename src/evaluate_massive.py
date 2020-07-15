@@ -11,7 +11,7 @@ from xclib.data import data_utils
 from torchnet import meter
 import time
 import torch.multiprocessing as mp
-
+mp.set_start_method('spawn')
 
 def get_args():
     p = ArgumentParser()
