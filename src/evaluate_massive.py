@@ -10,7 +10,7 @@ from trim_labels import get_discard_set
 from xclib.evaluation import xc_metrics
 from xclib.data import data_utils
 from torchnet import meter
-
+import  time
 
 def get_args():
     p = ArgumentParser()
@@ -181,19 +181,28 @@ if __name__ == "__main__":
             best_param = os.path.join(model_dir, model_cfg["best_file"])
             preload_path = model_cfg["pretrained"] if model_cfg["pretrained"] else best_param
             if os.path.exists(preload_path):
+                start= time.perf_counter()
                 meta_info = torch.load(preload_path)
                 model.load_state_dict(meta_info['model'])
+                end = time.perf_counter()
+                logging.info("Load model time: %.3f s." % (end - start))
+
             else:
                 raise FileNotFoundError(
                     "Model {} does not exist.".format(preload_path))
             # the r_th output
+            start = time.perf_counter()
+
             model.eval()
             with torch.no_grad():
                 out = model(x)
                 out = torch.sigmoid(out)
             out = out.detach().cpu().numpy()[:, label_mapping]
             pred_avg_meter.update(out, 1)
-        
+            end = time.perf_counter()
+            logging.info("Single model running time: %.3f s." % (end - start))
+            
+        start=time.perf_counter()
         if gt.is_sparse:
             gt = gt.coalesce()
             gt = scipy.sparse.coo_matrix((gt.values().cpu().numpy(),
@@ -201,6 +210,7 @@ if __name__ == "__main__":
                                          shape = (bs, num_labels))
         else:
             gt = scipy.sparse.coo_matrix(gt.cpu().numpy())
+            
         # only a batch of eval flags
         scores = pred_avg_meter.avg
         # map_meter.add(scores, gt.todense())
@@ -214,6 +224,9 @@ if __name__ == "__main__":
         eval_flags.append(eval_flag)
         ps_eval_flags.append(ps_eval_flag)
         scaled_eval_flags.append(scaled_eval_flag)
+        
+        end = time.perf_counter()
+        logging.info("Eval collection time: %.3f s." % (end - start))
     
     # eval all
     # gts = np.concatenate(gts)
