@@ -72,7 +72,7 @@ class XCDataset(Dataset):
         mapped_idx = np.array(idx)
         mapped_idx = np.expand_dims(mapped_idx, 0)
         values = torch.tensor([float(j) for i, j in idx_values_pair])
-        x = torch.sparse_coo_tensor(mapped_idx, values, size = (self.dest_dim,))
+        x = torch.sparse_coo_tensor(mapped_idx, values, size = (self.ori_dim,))
         return x, y
     
     def __len__(self):
