@@ -3,14 +3,15 @@ import logging
 from argparse import ArgumentParser
 from fc_network import FCNetwork
 import tqdm
-from dataset import XCDataset,XCDataset_massive
+from dataset import XCDataset, XCDataset_massive
 import json
 from typing import Dict, List
-from trim_labels import get_discard_set
 from xclib.evaluation import xc_metrics
 from xclib.data import data_utils
 from torchnet import meter
-import  time
+import time
+import torch.multiprocessing as mp
+
 
 def get_args():
     p = ArgumentParser()
@@ -18,8 +19,8 @@ def get_args():
                    help = "Path to the model config yaml file.")
     p.add_argument("--dataset", '-d', dest = "dataset", type = str, required = True,
                    help = "Path to the data config yaml file.")
-    p.add_argument("--gpus", '-g', dest = "gpus", type = str, required = False, default = "0",
-                   help = "A string that specifies which GPU you want to use, split by comma. Eg 0,1")
+    p.add_argument("--gpus", '-g', dest = "gpus", type = int, required = False, default = 1,
+                   help = "The number of gpus/ i.e. parallel models.")
     
     p.add_argument("--cost", '-c', dest = "cost", type = str, required = False, default = '',
                    help = "Use cost-sensitive model or not. Should be in [hashed, original]. "
@@ -27,7 +28,7 @@ def get_args():
     p.add_argument("--type", '-t', dest = "type", type = str, required = False, default = "all",
                    help = """Evaluation type. Should be 'all'(default) and/or 'trim_eval', split by comma. Eg. 'all,trim_eval'. If it is 'trim_eval', the rate parameter should be specified.
                    'all': Evaluate normally. If the 'trimmed' field in data config file is true, the code will automatically map the rest of the labels back to the orginal ones.
-                   'trim_eval': Trim labels when evaluating. The scores with tail labels will be set to 0 in order not to predict these ones. This checks how much tail labels affect final evaluation metrics. Plus it will evaluate average precision on tail and head labels only. 
+                   'trim_eval': Trim labels when evaluating. The scores with tail labels will be set to 0 in order not to predict these ones. This checks how much tail labels affect final evaluation metrics. Plus it will evaluate average precision on tail and head labels only.
                    """)
     p.add_argument("--rate", '-r', dest = "rate", type = str, required = False, default = "0.1",
                    help = """If evaluation needs trimming, this parameter specifies how many labels will be trimmed, decided by cumsum.
@@ -50,25 +51,46 @@ def get_inv_hash(counts, inv_mapping, j):
     return labels
 
 
-def single_rep(data_cfg, model_cfg, r):
-    # load ground truth
+def single_rep(data_cfg, model_cfg, r, model, x):
+    print("REP", r, id(model), end = '\t', )
+    # load model
     a.__dict__['rep'] = r
     model_dir = get_model_dir(data_cfg, model_cfg, a)
     # load mapping
+    feat_mapping = get_feat_hash(feat_path, r)
     counts, label_mapping, inv_mapping = get_label_hash(label_path, r)
     label_mapping = torch.from_numpy(label_mapping)
     # load models
     best_param = os.path.join(model_dir, model_cfg["best_file"])
     preload_path = model_cfg["pretrained"] if model_cfg["pretrained"] else best_param
     if os.path.exists(preload_path):
+        start = time.perf_counter()
         meta_info = torch.load(preload_path)
         model.load_state_dict(meta_info['model'])
+        end = time.perf_counter()
+        logging.info("Load model time: %.3f s." % (end - start))
     else:
         raise FileNotFoundError(
             "Model {} does not exist.".format(preload_path))
-    # predict. gt: original label. p: hashed.
-    gt, p, _, _ = compute_scores(model, test_loader)
-    return gt, p[:, label_mapping]
+    # the r_th output
+    start = time.perf_counter()
+    
+    # deal with feat mapping
+    if model_cfg['is_feat_hash']:
+        x = x.coalesce()
+        ind = x.indices()
+        v = x.values()
+        ind[1] = torch.from_numpy(feat_mapping[ind[1]])
+        x = torch.sparse_coo_tensor(ind, values = v, size = (bs, dest_dim))
+    model.eval()
+    with torch.no_grad():
+        out = model(x)
+        out = torch.sigmoid(out)
+    out = out.detach().cpu().numpy()[:, label_mapping]
+    end = time.perf_counter()
+    logging.info("Single model running time: %.3f s." % (end - start))
+    # lock??
+    return out
 
 
 def map_trimmed_back(scores, data_dir, prefix, ori_labels):
@@ -92,7 +114,7 @@ def sanity_check(a):
 
 if __name__ == "__main__":
     a = get_args()
-    gpus = [int(i) for i in a.gpus.split(",")]
+    gpus = a.gpus
     
     data_cfg = get_config(a.dataset)
     model_cfg = get_config(a.model)
@@ -123,14 +145,14 @@ if __name__ == "__main__":
     test_file = os.path.join(data_dir, prefix + "_test.txt")
     # this will take a lot of space!!!!!!
     test_set = XCDataset_massive(test_file, 0, data_cfg, model_cfg, 'te')
-    # test_sets = [XCDataset(test_file, r, data_cfg, model_cfg, 'te') for r in range(R)]
     test_loader = torch.utils.data.DataLoader(
         test_set, batch_size = a.bs)
     # construct model
     layers = [dest_dim] + model_cfg['hidden'] + [b]
-    model = FCNetwork(layers)
     if cuda:
-        model = torch.nn.DataParallel(model, device_ids = gpus).cuda()
+        models = [torch.nn.DataParallel(FCNetwork(layers), device_ids = [g]).cuda() for g in range(gpus)]
+    else:
+        models = [FCNetwork(layers) for g in range(gpus)]
     label_path = os.path.join(record_dir, "_".join(
         [prefix, str(num_labels), str(b), str(R)]))  # Bibtex_159_100_32
     
@@ -156,53 +178,20 @@ if __name__ == "__main__":
         pred_avg_meter = AverageMeter()
         X, gt = data
         bs = X.shape[0]
-        for r in range(R):
-            print("REP", r, end = '\t')
-            x = X
-            feat_mapping = get_feat_hash(feat_path, r)
-            if model_cfg['is_feat_hash']:
-                x = x.coalesce()
-                ind = x.indices()
-                v = x.values()
-                ind[1] = torch.from_numpy(feat_mapping[ind[1]])
-                x = torch.sparse_coo_tensor(ind, values = v, size = (bs, dest_dim))
-            else:
-                pass
-            x = x.to_dense()
-            if cuda:
-                x = x.cuda()
-            # load model
-            a.__dict__['rep'] = r
-            model_dir = get_model_dir(data_cfg, model_cfg, a)
-            # load mapping
-            counts, label_mapping, inv_mapping = get_label_hash(label_path, r)
-            label_mapping = torch.from_numpy(label_mapping)
-            # load models
-            best_param = os.path.join(model_dir, model_cfg["best_file"])
-            preload_path = model_cfg["pretrained"] if model_cfg["pretrained"] else best_param
-            if os.path.exists(preload_path):
-                start= time.perf_counter()
-                meta_info = torch.load(preload_path)
-                model.load_state_dict(meta_info['model'])
-                end = time.perf_counter()
-                logging.info("Load model time: %.3f s." % (end - start))
-
-            else:
-                raise FileNotFoundError(
-                    "Model {} does not exist.".format(preload_path))
-            # the r_th output
-            start = time.perf_counter()
-
-            model.eval()
-            with torch.no_grad():
-                out = model(x)
-                out = torch.sigmoid(out)
-            out = out.detach().cpu().numpy()[:, label_mapping]
-            pred_avg_meter.update(out, 1)
-            end = time.perf_counter()
-            logging.info("Single model running time: %.3f s." % (end - start))
-            
-        start=time.perf_counter()
+        x = X
+        # if not to dense, the code will run but very slowly
+        x = x.to_dense()
+        if cuda:
+            x = x.cuda()
+            x.share_memory_()
+        with mp.Pool(processes = gpus) as p:
+            # p.starmap(single_rep, ((data_cfg, model_cfg, r, models[r % gpus], x) for r in range(R)))
+            outs = p.starmap(single_rep, ((data_cfg, model_cfg, r, models[r % gpus], x) for r in range(R)))
+            # out = single_rep(data_cfg, model_cfg, r, models[r % gpus], x)
+            for out in outs:
+                pred_avg_meter.update(out, 1)
+        
+        start = time.perf_counter()
         if gt.is_sparse:
             gt = gt.coalesce()
             gt = scipy.sparse.coo_matrix((gt.values().cpu().numpy(),
@@ -210,7 +199,7 @@ if __name__ == "__main__":
                                          shape = (bs, num_labels))
         else:
             gt = scipy.sparse.coo_matrix(gt.cpu().numpy())
-            
+        
         # only a batch of eval flags
         scores = pred_avg_meter.avg
         # map_meter.add(scores, gt.todense())
