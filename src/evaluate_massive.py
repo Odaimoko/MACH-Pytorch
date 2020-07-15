@@ -186,7 +186,7 @@ if __name__ == "__main__":
             # the r_th output
             model.eval()
             with torch.no_grad():
-                out = model(X)
+                out = model(x)
                 out = torch.sigmoid(out)
             out = out.detach().cpu().numpy()[:, label_mapping]
             pred_avg_meter.update(out, 1)
