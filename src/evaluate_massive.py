@@ -60,6 +60,11 @@ def single_rep(data_cfg, model_cfg, r, model, x, a):
     print("REP", r, id(model), end = '\t', )
     # load model
     a.__dict__['rep'] = r
+    cuda = torch.cuda.is_available()
+    if cuda:
+        device = torch.device("cuda:" + str(r % a.gpus))
+    else:
+        device = torch.device("cpu")
     model_dir = get_model_dir(data_cfg, model_cfg, a)
     # load mapping
     R = model_cfg['r']
@@ -90,11 +95,15 @@ def single_rep(data_cfg, model_cfg, r, model, x, a):
     
     # deal with feat mapping
     if model_cfg['is_feat_hash']:
+        if not x.is_sparse:
+            x = x.to_sparse()
         x = x.coalesce()
         ind = x.indices()
         v = x.values()
         ind[1] = torch.from_numpy(feat_mapping[ind[1]])
         x = torch.sparse_coo_tensor(ind, values = v, size = (bs, dest_dim))
+    if cuda:
+        x = x.cuda(device)
     model.eval()
     with torch.no_grad():
         out = model(x)
@@ -192,9 +201,8 @@ if __name__ == "__main__":
         x = X
         # if not to dense, the code will run but very slowly
         x = x.to_dense()
-        if cuda:
-            x = x.cuda()
-            x.share_memory_()
+        x.share_memory_()
+        #  Sparse Tensors are not supported in Multiprocessing/Sharing.
         with mp.Pool(processes = gpus) as p:
             # p.starmap(single_rep, ((data_cfg, model_cfg, r, models[r % gpus], x) for r in range(R)))
             outs = p.starmap(single_rep, ((data_cfg, model_cfg, r, models[r % gpus], x, a) for r in range(R)))
