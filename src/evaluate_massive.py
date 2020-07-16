@@ -11,6 +11,7 @@ from xclib.data import data_utils
 from torchnet import meter
 import time
 import torch.multiprocessing as mp
+
 try:
     mp.set_start_method('spawn')
 except:
@@ -61,12 +62,15 @@ def single_rep(data_cfg, model_cfg, r, model, x, a):
     a.__dict__['rep'] = r
     model_dir = get_model_dir(data_cfg, model_cfg, a)
     # load mapping
+    R = model_cfg['r']
+    b = model_cfg['b']
+    num_labels = data_cfg["num_labels"]
     record_dir = data_cfg["record_dir"]
     prefix = data_cfg['prefix']
-    dest_dim = model_cfg['dest_dim']
-    ori_dim = data_cfg['ori_dim']
-    feat_path = os.path.join(record_dir, "_".join([prefix, str(ori_dim), str(dest_dim)]))
+    feat_path = os.path.join(record_dir, "_".join([prefix, str(data_cfg['ori_dim']), str(model_cfg['dest_dim'])]))
     feat_mapping = get_feat_hash(feat_path, r)
+    label_path = os.path.join(record_dir, "_".join(
+        [prefix, str(num_labels), str(b), str(R)]))  # Bibtex_159_100_32
     counts, label_mapping, inv_mapping = get_label_hash(label_path, r)
     label_mapping = torch.from_numpy(label_mapping)
     # load models
@@ -162,8 +166,6 @@ if __name__ == "__main__":
         models = [torch.nn.DataParallel(FCNetwork(layers), device_ids = [g]).cuda() for g in range(gpus)]
     else:
         models = [FCNetwork(layers) for g in range(gpus)]
-    label_path = os.path.join(record_dir, "_".join(
-        [prefix, str(num_labels), str(b), str(R)]))  # Bibtex_159_100_32
     
     pred_avg_meter = AverageMeter()
     gt = None
