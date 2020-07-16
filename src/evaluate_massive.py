@@ -11,7 +11,11 @@ from xclib.data import data_utils
 from torchnet import meter
 import time
 import torch.multiprocessing as mp
-mp.set_start_method('spawn')
+try:
+    mp.set_start_method('spawn')
+except:
+    pass
+
 
 def get_args():
     p = ArgumentParser()
@@ -51,12 +55,17 @@ def get_inv_hash(counts, inv_mapping, j):
     return labels
 
 
-def single_rep(data_cfg, model_cfg, r, model, x):
+def single_rep(data_cfg, model_cfg, r, model, x, a):
     print("REP", r, id(model), end = '\t', )
     # load model
     a.__dict__['rep'] = r
     model_dir = get_model_dir(data_cfg, model_cfg, a)
     # load mapping
+    record_dir = data_cfg["record_dir"]
+    prefix = data_cfg['prefix']
+    dest_dim = model_cfg['dest_dim']
+    ori_dim = data_cfg['ori_dim']
+    feat_path = os.path.join(record_dir, "_".join([prefix, str(ori_dim), str(dest_dim)]))
     feat_mapping = get_feat_hash(feat_path, r)
     counts, label_mapping, inv_mapping = get_label_hash(label_path, r)
     label_mapping = torch.from_numpy(label_mapping)
@@ -186,7 +195,7 @@ if __name__ == "__main__":
             x.share_memory_()
         with mp.Pool(processes = gpus) as p:
             # p.starmap(single_rep, ((data_cfg, model_cfg, r, models[r % gpus], x) for r in range(R)))
-            outs = p.starmap(single_rep, ((data_cfg, model_cfg, r, models[r % gpus], x) for r in range(R)))
+            outs = p.starmap(single_rep, ((data_cfg, model_cfg, r, models[r % gpus], x, a) for r in range(R)))
             # out = single_rep(data_cfg, model_cfg, r, models[r % gpus], x)
             for out in outs:
                 pred_avg_meter.update(out, 1)
