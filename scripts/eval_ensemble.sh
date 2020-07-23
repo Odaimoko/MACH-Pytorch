@@ -31,9 +31,9 @@ for ((i = 0; i < 8; i++)); do
 done
 
 if [ -z $COST ]; then
-   echo noevalcost
-   python -W ignore::Warning src/eval_ensemble.py --model $MODEL_CONFIG --dataset $DATASET_CONFIG
+   echo noevalcost python -W ignore::Warning src/eval_map_ensemble.py --model $MODEL_CONFIG --dataset $DATASET_CONFIG
+   python -W ignore::Warning src/eval_map_ensemble.py --model $MODEL_CONFIG --dataset $DATASET_CONFIG
 else
-   echo eval cost
-   python -W ignore::Warning src/eval_ensemble.py --model $MODEL_CONFIG --dataset $DATASET_CONFIG --cost $COST
+   echo evalcost python -W ignore::Warning src/eval_map_ensemble.py --model $MODEL_CONFIG --dataset $DATASET_CONFIG --cost $COST
+   python -W ignore::Warning src/eval_map_ensemble.py --model $MODEL_CONFIG --dataset $DATASET_CONFIG --cost $COST
 fi
