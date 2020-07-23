@@ -8,6 +8,7 @@ import json
 from typing import Dict, List
 from trim_labels import get_discard_set
 from torchnet.meter import APMeter
+import sklearn.metrics as sm
 
 
 def get_args():
@@ -55,7 +56,7 @@ def single_rep(data_cfg, model_cfg, r):
         gt.append(y)
         y = get_mapped_labels(y, label_mapping, b)
         pred.append(y)
-    gt = scipy.sparse.csr_matrix(torch.cat(gt).to_dense().numpy())
+    gt = torch.cat(gt).to_dense()
     pred = torch.cat(pred).numpy()
     
     return gt, pred[:, label_mapping]
@@ -133,7 +134,8 @@ if __name__ == "__main__":
             #  Sum of avg is larger than 1 -> that is the feature, no problem
             d = evaluate_scores(gt, scores, model_cfg)
             log_eval_results(d)
-    
+            print(sm.average_precision_score(gt.numpy(), scores))
+
     if 'trim_eval' in types or 'only_tail' in types:
         #   find tail labels using  training set.
         filepath = 'data/{n1}/{n1}_train.txt'.format(n1 = name)
