@@ -128,11 +128,11 @@ if __name__ == "__main__":
     a.__dict__['rep'] = 0
     single_model_dir = get_model_dir(data_cfg, model_cfg, a)
     gt_filename = os.path.join(single_model_dir, "gt.npz")
-    gt = scipy.sparse.load_npz(gt_filename)
+    gt = scipy.sparse.load_npz(gt_filename).tocsc()
     start = 0
     scores = 0
     ap_values = []
-    pbar = tqdm.tqdm(total = int(num_labels / a.bs) + 1)
+    pbar = tqdm.tqdm(total = int(num_labels / a.bs))
     while start < num_labels:
         end = min(start + a.bs, num_labels)
         for r in range(R):
@@ -147,7 +147,7 @@ if __name__ == "__main__":
             scores += out[:, label_mapping[start:end]]
         scores = scores / R  # num_ins x bs
         # only a batch of eval flags
-        ap_meter.add(scores, gt.todense()[:, start:end])
+        ap_meter.add(scores, gt[:, start:end].todense())
         ap_values.append(ap_meter.value())
         start += a.bs
         ap_meter.reset()
