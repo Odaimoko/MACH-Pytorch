@@ -15,27 +15,27 @@ import time
 
 def get_args():
     p = ArgumentParser()
-    p.add_argument("--model", '-m', dest = "model", type = str, required = True,
-                   help = "Path to the model config yaml file.")
-    p.add_argument("--dataset", '-d', dest = "dataset", type = str, required = True,
-                   help = "Path to the data config yaml file.")
-    p.add_argument("--gpus", '-g', dest = "gpus", type = str, required = False, default = "0",
-                   help = "A string that specifies which GPU you want to use, split by comma. Eg 0,1")
-    
-    p.add_argument("--cost", '-c', dest = "cost", type = str, required = False, default = '',
-                   help = "Use cost-sensitive model or not. Should be in [hashed, original]. "
-                          "Default empty string, which indicates that no cost-sensitive is used.")
-    p.add_argument("--type", '-t', dest = "type", type = str, required = False, default = "all",
-                   help = """Evaluation type. Should be 'all'(default) and/or 'trim_eval', split by comma. Eg. 'all,trim_eval'. If it is 'trim_eval', the rate parameter should be specified.
+    p.add_argument("--model", '-m', dest="model", type=str, required=True,
+                   help="Path to the model config yaml file.")
+    p.add_argument("--dataset", '-d', dest="dataset", type=str, required=True,
+                   help="Path to the data config yaml file.")
+    p.add_argument("--gpus", '-g', dest="gpus", type=str, required=False, default="0",
+                   help="A string that specifies which GPU you want to use, split by comma. Eg 0,1")
+
+    p.add_argument("--cost", '-c', dest="cost", type=str, required=False, default='',
+                   help="Use cost-sensitive model or not. Should be in [hashed, original]. "
+                   "Default empty string, which indicates that no cost-sensitive is used.")
+    p.add_argument("--type", '-t', dest="type", type=str, required=False, default="all",
+                   help="""Evaluation type. Should be 'all'(default) and/or 'trim_eval', split by comma. Eg. 'all,trim_eval'. If it is 'trim_eval', the rate parameter should be specified.
                    'all': Evaluate normally. If the 'trimmed' field in data config file is true, the code will automatically map the rest of the labels back to the orginal ones.
                    'trim_eval': Trim labels when evaluating. The scores with tail labels will be set to 0 in order not to predict these ones. This checks how much tail labels affect final evaluation metrics. Plus it will evaluate average precision on tail and head labels only. 
                    """)
-    p.add_argument("--rate", '-r', dest = "rate", type = str, required = False, default = "0.1",
-                   help = """If evaluation needs trimming, this parameter specifies how many labels will be trimmed, decided by cumsum.
+    p.add_argument("--rate", '-r', dest="rate", type=str, required=False, default="0.1",
+                   help="""If evaluation needs trimming, this parameter specifies how many labels will be trimmed, decided by cumsum.
                    Should be a string containing trimming rates split by comma. Eg '0.1,0.2'. Default '0.1'.""")
-    p.add_argument("--batch_size", '-bs', dest = "bs", type = int, required = False, default = "32",
-                   help = """Evaluation batch size.""")
-    
+    p.add_argument("--batch_size", '-bs', dest="bs", type=int, required=False, default="32",
+                   help="""Evaluation batch size.""")
+
     return p.parse_args()
 
 
@@ -67,7 +67,7 @@ def map_trimmed_back(scores, data_dir, prefix, ori_labels):
     reverse_mapping = {v[0]: int(k) for k, v in trim_mapping.items()}
     reverse_mapping_tensor = torch.tensor(
         [reverse_mapping[k] for k in sorted(reverse_mapping.keys())])
-    
+
     num_ins = scores.shape[0]
     ori_scores = np.zeros([num_ins, ori_labels])
     ori_scores[:, reverse_mapping_tensor] = scores
@@ -82,19 +82,19 @@ def sanity_check(a):
 if __name__ == "__main__":
     a = get_args()
     gpus = [int(i) for i in a.gpus.split(",")]
-    
+
     data_cfg = get_config(a.dataset)
     model_cfg = get_config(a.model)
     log_file = data_cfg['prefix'] + "_eval.log"
     model_dir = os.path.join(model_cfg["model_dir"], data_cfg["prefix"])
-    logging.basicConfig(level = logging.INFO,
-                        format = '%(asctime)s %(levelname)-8s %(message)s', datefmt = '%Y-%m-%d %H:%M:%S',
-                        handlers = [
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%Y-%m-%d %H:%M:%S',
+                        handlers=[
                             logging.FileHandler(
                                 os.path.join(model_dir, log_file)),
                             logging.StreamHandler()
                         ])
-    
+
     cuda = torch.cuda.is_available()
     R = model_cfg['r']
     b = model_cfg['b']
@@ -106,25 +106,27 @@ if __name__ == "__main__":
     record_dir = data_cfg["record_dir"]
     data_dir = os.path.join("data", name)
     K = model_cfg['at_k']
-    feat_path = os.path.join(record_dir, "_".join([prefix, str(ori_dim), str(dest_dim)]))
-    
+    feat_path = os.path.join(record_dir, "_".join(
+        [prefix, str(ori_dim), str(dest_dim)]))
+
     # load dataset
     test_file = os.path.join(data_dir, prefix + "_test.txt")
     label_path = os.path.join(record_dir, "_".join(
         [prefix, str(num_labels), str(b), str(R)]))  # Bibtex_159_100_32
-    
+
     pred_avg_meter = AverageMeter()
     logging.info("Evaluating mAP only config %s" % (a.model))
     logging.info("Dataset config %s" % (a.dataset))
     if a.cost:
         logging.info("Evaluating cost-sensitive method: %s" % (a.cost))
-    
+
     # get inverse propensity
-    
+
     _, labels, _, _, _ = data_utils.read_data(test_file)
-    inv_propen = xc_metrics.compute_inv_propesity(labels, model_cfg["ps_A"], model_cfg["ps_B"])
+    inv_propen = xc_metrics.compute_inv_propesity(
+        labels, model_cfg["ps_A"], model_cfg["ps_B"])
     ap_meter = meter.APMeter()
-    
+
     a.__dict__['rep'] = 0
     single_model_dir = get_model_dir(data_cfg, model_cfg, a)
     gt_filename = os.path.join(single_model_dir, "gt.npz")
@@ -132,11 +134,12 @@ if __name__ == "__main__":
     start = 0
     scores = 0
     ap_values = []
-    pbar = tqdm.tqdm(total = int(num_labels / a.bs))
+    pbar = tqdm.tqdm(total=int(num_labels / a.bs))
     while start < num_labels:
         end = min(start + a.bs, num_labels)
         for r in range(R):
-            # print("REP", r, end = '\t')
+            print("REP", r, end='\t')
+            hajime = time.perf_counter()
             # load label mapping
             a.__dict__['rep'] = r
             single_model_dir = get_model_dir(data_cfg, model_cfg, a)
@@ -145,14 +148,21 @@ if __name__ == "__main__":
             filename = os.path.join(single_model_dir, "pred.npy")
             out = np.load(filename)
             scores += out[:, label_mapping[start:end]]
+            owaru = time.perf_counter()
+            print("Load single rep: %.3f s." % (owaru - hajime))
+
         scores = scores / R  # num_ins x bs
         # only a batch of eval flags
+        hajime = time.perf_counter()
+
         ap_meter.add(scores, gt[:, start:end].todense())
         ap_values.append(ap_meter.value())
         start += a.bs
         ap_meter.reset()
         scores = 0
         pbar.update(1)
+        owaru = time.perf_counter()
+        print("Update ap meter: %.3f s." % (owaru - hajime))
     ap = np.concatenate(ap_values)
     map = ap.mean()
     d = {
