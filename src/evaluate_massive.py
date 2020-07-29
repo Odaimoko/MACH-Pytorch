@@ -151,6 +151,8 @@ if __name__ == "__main__":
     ps_eval_flags = []
 
     models = []
+    l_maps = []
+    f_mappings = []
     for r in range(R):
         model = torch.nn.DataParallel(FCNetwork(layers), device_ids=gpus)
         if cuda:
@@ -161,6 +163,7 @@ if __name__ == "__main__":
         # load mapping
         counts, label_mapping, inv_mapping = get_label_hash(label_path, r)
         label_mapping = torch.from_numpy(label_mapping)
+        l_maps.append(label_mapping)
         # load model
         best_param = os.path.join(model_dir, model_cfg["best_file"])
         preload_path = model_cfg["pretrained"] if model_cfg["pretrained"] else best_param
@@ -173,11 +176,16 @@ if __name__ == "__main__":
                     preload_path, map_location=lambda storage, loc: storage)
             model.load_state_dict(meta_info['model'])
             end = time.perf_counter()
-            logging.info("Load model time: %.3f s." % (end - start))
+            logging.info("Load model %s time: %.3f s." % (preload_path,end - start))
             models.append(model)
         else:
             raise FileNotFoundError(
                 "Model {} does not exist.".format(preload_path))
+        # load feature mappings
+
+        if model_cfg['is_feat_hash']:
+            feat_mapping = get_feat_hash(feat_path, r)
+            f_mappings.append(feat_mapping)
 
     for i, data in enumerate(tqdm.tqdm(test_loader)):
         print(i, 'th data')
@@ -185,18 +193,15 @@ if __name__ == "__main__":
         X, gt = data
         bs = X.shape[0]
         for r in range(R):
-            print("REP", r, end='\t')
+            # print("REP", r, end='\t')
             x = X
-            feat_mapping = get_feat_hash(feat_path, r)
             if model_cfg['is_feat_hash']:
                 x = x.coalesce()
                 ind = x.indices()
                 v = x.values()
-                ind[1] = torch.from_numpy(feat_mapping[ind[1]])
+                ind[1] = torch.from_numpy(f_mappings[r][ind[1]])
                 x = torch.sparse_coo_tensor(ind, values=v, size=(bs, dest_dim))
-            else:
-                pass
-            x = x.to_dense()
+                x = x.to_dense()
             if cuda:
                 x = x.cuda()
             # the r_th output
@@ -206,7 +211,7 @@ if __name__ == "__main__":
             with torch.no_grad():
                 out = models[r](x)
                 out = torch.sigmoid(out)
-            out = out.detach().cpu().numpy()[:, label_mapping]
+            out = out.detach().cpu().numpy()[:, l_maps[r]]
             pred_avg_meter.update(out, 1)
             end = time.perf_counter()
             # logging.info("Single model running time: %.3f s." % (end - start))
