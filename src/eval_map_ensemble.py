@@ -131,6 +131,23 @@ if __name__ == "__main__":
     single_model_dir = get_model_dir(data_cfg, model_cfg, a)
     gt_filename = os.path.join(single_model_dir, "gt.npz")
     gt = scipy.sparse.load_npz(gt_filename).tocsc()
+    # get label mappings
+    l_maps = []
+    preds = []
+    for r in range(R):
+        hajime = time.perf_counter()
+        a.__dict__['rep'] = r
+        counts, label_mapping, inv_mapping = get_label_hash(label_path, r)
+        # load label mapping
+        single_model_dir = get_model_dir(data_cfg, model_cfg, a)
+        filename = os.path.join(single_model_dir, "pred.npy")
+        out = np.load(filename)  # ins x B
+        l_maps.append(label_mapping)
+        preds.append(out)
+        owaru = time.perf_counter()
+        print("Load single rep: %.3f s." % (owaru - hajime))
+
+    l_maps = np.stack(l_maps, axis=0)  # R x #labels
     start = 0
     scores = 0
     ap_values = []
@@ -139,18 +156,7 @@ if __name__ == "__main__":
         end = min(start + a.bs, num_labels)
         for r in range(R):
             print("REP", r, end='\t')
-            hajime = time.perf_counter()
-            # load label mapping
-            a.__dict__['rep'] = r
-            single_model_dir = get_model_dir(data_cfg, model_cfg, a)
-            counts, label_mapping, inv_mapping = get_label_hash(label_path, r)
-            label_mapping = torch.from_numpy(label_mapping)
-            filename = os.path.join(single_model_dir, "pred.npy")
-            out = np.load(filename)
-            scores += out[:, label_mapping[start:end]]
-            owaru = time.perf_counter()
-            print("Load single rep: %.3f s." % (owaru - hajime))
-
+            scores += preds[r][:, label_mapping[start:end]]
         scores = scores / R  # num_ins x bs
         # only a batch of eval flags
         hajime = time.perf_counter()
