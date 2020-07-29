@@ -3,38 +3,39 @@ import logging
 from argparse import ArgumentParser
 from fc_network import FCNetwork
 import tqdm
-from dataset import XCDataset,XCDataset_massive
+from dataset import XCDataset, XCDataset_massive
 import json
 from typing import Dict, List
 from trim_labels import get_discard_set
 from xclib.evaluation import xc_metrics
 from xclib.data import data_utils
 from torchnet import meter
-import  time
+import time
+
 
 def get_args():
     p = ArgumentParser()
-    p.add_argument("--model", '-m', dest = "model", type = str, required = True,
-                   help = "Path to the model config yaml file.")
-    p.add_argument("--dataset", '-d', dest = "dataset", type = str, required = True,
-                   help = "Path to the data config yaml file.")
-    p.add_argument("--gpus", '-g', dest = "gpus", type = str, required = False, default = "0",
-                   help = "A string that specifies which GPU you want to use, split by comma. Eg 0,1")
-    
-    p.add_argument("--cost", '-c', dest = "cost", type = str, required = False, default = '',
-                   help = "Use cost-sensitive model or not. Should be in [hashed, original]. "
-                          "Default empty string, which indicates that no cost-sensitive is used.")
-    p.add_argument("--type", '-t', dest = "type", type = str, required = False, default = "all",
-                   help = """Evaluation type. Should be 'all'(default) and/or 'trim_eval', split by comma. Eg. 'all,trim_eval'. If it is 'trim_eval', the rate parameter should be specified.
+    p.add_argument("--model", '-m', dest="model", type=str, required=True,
+                   help="Path to the model config yaml file.")
+    p.add_argument("--dataset", '-d', dest="dataset", type=str, required=True,
+                   help="Path to the data config yaml file.")
+    p.add_argument("--gpus", '-g', dest="gpus", type=str, required=False, default="0",
+                   help="A string that specifies which GPU you want to use, split by comma. Eg 0,1")
+
+    p.add_argument("--cost", '-c', dest="cost", type=str, required=False, default='',
+                   help="Use cost-sensitive model or not. Should be in [hashed, original]. "
+                   "Default empty string, which indicates that no cost-sensitive is used.")
+    p.add_argument("--type", '-t', dest="type", type=str, required=False, default="all",
+                   help="""Evaluation type. Should be 'all'(default) and/or 'trim_eval', split by comma. Eg. 'all,trim_eval'. If it is 'trim_eval', the rate parameter should be specified.
                    'all': Evaluate normally. If the 'trimmed' field in data config file is true, the code will automatically map the rest of the labels back to the orginal ones.
                    'trim_eval': Trim labels when evaluating. The scores with tail labels will be set to 0 in order not to predict these ones. This checks how much tail labels affect final evaluation metrics. Plus it will evaluate average precision on tail and head labels only. 
                    """)
-    p.add_argument("--rate", '-r', dest = "rate", type = str, required = False, default = "0.1",
-                   help = """If evaluation needs trimming, this parameter specifies how many labels will be trimmed, decided by cumsum.
+    p.add_argument("--rate", '-r', dest="rate", type=str, required=False, default="0.1",
+                   help="""If evaluation needs trimming, this parameter specifies how many labels will be trimmed, decided by cumsum.
                    Should be a string containing trimming rates split by comma. Eg '0.1,0.2'. Default '0.1'.""")
-    p.add_argument("--batch_size", '-bs', dest = "bs", type = int, required = False, default = "32",
-                   help = """Evaluation batch size.""")
-    
+    p.add_argument("--batch_size", '-bs', dest="bs", type=int, required=False, default="32",
+                   help="""Evaluation batch size.""")
+
     return p.parse_args()
 
 
@@ -61,7 +62,12 @@ def single_rep(data_cfg, model_cfg, r):
     best_param = os.path.join(model_dir, model_cfg["best_file"])
     preload_path = model_cfg["pretrained"] if model_cfg["pretrained"] else best_param
     if os.path.exists(preload_path):
-        meta_info = torch.load(preload_path)
+        if os.path.exists(preload_path):
+            if cuda:
+                meta_info = torch.load(preload_path)
+            else:
+                meta_info = torch.load(
+                    preload_path, map_location=lambda storage, loc: storage)
         model.load_state_dict(meta_info['model'])
     else:
         raise FileNotFoundError(
@@ -78,7 +84,7 @@ def map_trimmed_back(scores, data_dir, prefix, ori_labels):
     reverse_mapping = {v[0]: int(k) for k, v in trim_mapping.items()}
     reverse_mapping_tensor = torch.tensor(
         [reverse_mapping[k] for k in sorted(reverse_mapping.keys())])
-    
+
     num_ins = scores.shape[0]
     ori_scores = np.zeros([num_ins, ori_labels])
     ori_scores[:, reverse_mapping_tensor] = scores
@@ -93,19 +99,19 @@ def sanity_check(a):
 if __name__ == "__main__":
     a = get_args()
     gpus = [int(i) for i in a.gpus.split(",")]
-    
+
     data_cfg = get_config(a.dataset)
     model_cfg = get_config(a.model)
     log_file = data_cfg['prefix'] + "_eval.log"
     model_dir = os.path.join(model_cfg["model_dir"], data_cfg["prefix"])
-    logging.basicConfig(level = logging.INFO,
-                        format = '%(asctime)s %(levelname)-8s %(message)s', datefmt = '%Y-%m-%d %H:%M:%S',
-                        handlers = [
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%Y-%m-%d %H:%M:%S',
+                        handlers=[
                             logging.FileHandler(
                                 os.path.join(model_dir, log_file)),
                             logging.StreamHandler()
                         ])
-    
+
     cuda = torch.cuda.is_available()
     R = model_cfg['r']
     b = model_cfg['b']
@@ -117,47 +123,50 @@ if __name__ == "__main__":
     record_dir = data_cfg["record_dir"]
     data_dir = os.path.join("data", name)
     K = model_cfg['at_k']
-    feat_path = os.path.join(record_dir, "_".join([prefix, str(ori_dim), str(dest_dim)]))
-    
+    feat_path = os.path.join(record_dir, "_".join(
+        [prefix, str(ori_dim), str(dest_dim)]))
+
     # load dataset
     test_file = os.path.join(data_dir, prefix + "_test.txt")
     # this will take a lot of space!!!!!!
     test_set = XCDataset_massive(test_file, 0, data_cfg, model_cfg, 'te')
     # test_sets = [XCDataset(test_file, r, data_cfg, model_cfg, 'te') for r in range(R)]
     test_loader = torch.utils.data.DataLoader(
-        test_set, batch_size = a.bs)
+        test_set, batch_size=a.bs)
     # construct model
     layers = [dest_dim] + model_cfg['hidden'] + [b]
     model = FCNetwork(layers)
+    model = torch.nn.DataParallel(model, device_ids=gpus)
     if cuda:
-        model = torch.nn.DataParallel(model, device_ids = gpus).cuda()
+        model = model.cuda()
     label_path = os.path.join(record_dir, "_".join(
         [prefix, str(num_labels), str(b), str(R)]))  # Bibtex_159_100_32
-    
+
     pred_avg_meter = AverageMeter()
     gt = None
     logging.info("Evaluating config %s" % (a.model))
     logging.info("Dataset config %s" % (a.dataset))
     if a.cost:
         logging.info("Evaluating cost-sensitive method: %s" % (a.cost))
-    
+
     # get inverse propensity
-    
+
     _, labels, _, _, _ = data_utils.read_data(test_file)
-    inv_propen = xc_metrics.compute_inv_propesity(labels, model_cfg["ps_A"], model_cfg["ps_B"])
+    inv_propen = xc_metrics.compute_inv_propesity(
+        labels, model_cfg["ps_A"], model_cfg["ps_B"])
     gts = []
     scaled_eval_flags = []
     eval_flags = []
     ps_eval_flags = []
     map_meter = meter.mAPMeter()
-    
+
     for i, data in enumerate(tqdm.tqdm(test_loader)):
         print(i, 'th data')
         pred_avg_meter = AverageMeter()
         X, gt = data
         bs = X.shape[0]
         for r in range(R):
-            print("REP", r, end = '\t')
+            print("REP", r, end='\t')
             x = X
             feat_mapping = get_feat_hash(feat_path, r)
             if model_cfg['is_feat_hash']:
@@ -165,7 +174,7 @@ if __name__ == "__main__":
                 ind = x.indices()
                 v = x.values()
                 ind[1] = torch.from_numpy(feat_mapping[ind[1]])
-                x = torch.sparse_coo_tensor(ind, values = v, size = (bs, dest_dim))
+                x = torch.sparse_coo_tensor(ind, values=v, size=(bs, dest_dim))
             else:
                 pass
             x = x.to_dense()
@@ -181,7 +190,7 @@ if __name__ == "__main__":
             best_param = os.path.join(model_dir, model_cfg["best_file"])
             preload_path = model_cfg["pretrained"] if model_cfg["pretrained"] else best_param
             if os.path.exists(preload_path):
-                start= time.perf_counter()
+                start = time.perf_counter()
                 meta_info = torch.load(preload_path)
                 model.load_state_dict(meta_info['model'])
                 end = time.perf_counter()
@@ -201,20 +210,20 @@ if __name__ == "__main__":
             pred_avg_meter.update(out, 1)
             end = time.perf_counter()
             logging.info("Single model running time: %.3f s." % (end - start))
-            
-        start=time.perf_counter()
+
+        start = time.perf_counter()
         if gt.is_sparse:
             gt = gt.coalesce()
             gt = scipy.sparse.coo_matrix((gt.values().cpu().numpy(),
                                           gt.indices().cpu().numpy()),
-                                         shape = (bs, num_labels))
+                                         shape=(bs, num_labels))
         else:
             gt = scipy.sparse.coo_matrix(gt.cpu().numpy())
-            
+
         # only a batch of eval flags
         scores = pred_avg_meter.avg
         # map_meter.add(scores, gt.todense())
-        
+
         indices, true_labels, ps_indices, inv_psp = xc_metrics. \
             _setup_metric(scores, gt, inv_propen)
         eval_flag = xc_metrics._eval_flags(indices, true_labels, None)
@@ -224,28 +233,30 @@ if __name__ == "__main__":
         eval_flags.append(eval_flag)
         ps_eval_flags.append(ps_eval_flag)
         scaled_eval_flags.append(scaled_eval_flag)
-        
+
         end = time.perf_counter()
         logging.info("Eval collection time: %.3f s." % (end - start))
-    
+
     # eval all
     # gts = np.concatenate(gts)
     scaled_eval_flags = np.concatenate(scaled_eval_flags)
     eval_flags = np.concatenate(eval_flags)
     ps_eval_flags = np.concatenate(ps_eval_flags)
-    
+
     ndcg_denominator = np.cumsum(
         1 / np.log2(np.arange(1, num_labels + 1) + 1))
     _total_pos = np.asarray(
-        labels.sum(axis = 1),
-        dtype = np.int32)
-    
+        labels.sum(axis=1),
+        dtype=np.int32)
+
     n = ndcg_denominator[_total_pos - 1]
     prec = xc_metrics._precision(eval_flags, K)
     ndcg = xc_metrics._ndcg(eval_flags, n, K)
-    
-    PSprec = xc_metrics._precision(scaled_eval_flags, K) / xc_metrics._precision(ps_eval_flags, K)
-    PSnDCG = xc_metrics._ndcg(scaled_eval_flags, n, K) / xc_metrics._ndcg(ps_eval_flags, n, K)
+
+    PSprec = xc_metrics._precision(
+        scaled_eval_flags, K) / xc_metrics._precision(ps_eval_flags, K)
+    PSnDCG = xc_metrics._ndcg(scaled_eval_flags, n, K) / \
+        xc_metrics._ndcg(ps_eval_flags, n, K)
     d = {
         "prec": prec,
         "ndcg": ndcg,
