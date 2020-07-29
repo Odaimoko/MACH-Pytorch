@@ -37,7 +37,7 @@ def get_args():
     p.add_argument("--batch_size", '-bs', dest="bs", type=int, required=False, default="32",
                    help="""Evaluation batch size.""")
     p.add_argument("--cache_size", '-cs', dest="cs", type=int, required=False, default="32",
-                    help="""LRU cache size.""")
+                   help="""LRU cache size.""")
     return p.parse_args()
 
 
@@ -164,7 +164,8 @@ if __name__ == "__main__":
                 out = np.load(filename)
                 lfu[key] = out
         owaru = time.perf_counter()
-        print("Load prediction pickles: %.3f s." % (owaru - hajime))
+        print("Load prediction pickles: %.3f s. Current cache size %d out of %d." %
+              (owaru - hajime, lfu.currsize,lfu.maxsize))
         scores = []
         for ori_l in range(start, end):
             score = [lfu[(r, l_maps[r, ori_l])] for r in range(R)]
