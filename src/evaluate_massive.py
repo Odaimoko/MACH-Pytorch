@@ -129,8 +129,9 @@ if __name__ == "__main__":
     # construct model
     layers = [dest_dim] + model_cfg['hidden'] + [b]
     model = FCNetwork(layers)
+    model = torch.nn.DataParallel(model, device_ids=gpus)
     if cuda:
-        model = torch.nn.DataParallel(model, device_ids = gpus).cuda()
+        model = model.cuda()
     label_path = os.path.join(record_dir, "_".join(
         [prefix, str(num_labels), str(b), str(R)]))  # Bibtex_159_100_32
     
@@ -182,10 +183,14 @@ if __name__ == "__main__":
             preload_path = model_cfg["pretrained"] if model_cfg["pretrained"] else best_param
             if os.path.exists(preload_path):
                 start= time.perf_counter()
-                meta_info = torch.load(preload_path)
+                if cuda:
+                    meta_info = torch.load(preload_path)
+                else:
+                    meta_info = torch.load(
+                        preload_path, map_location=lambda storage, loc: storage)
                 model.load_state_dict(meta_info['model'])
                 end = time.perf_counter()
-                logging.info("Load model time: %.3f s." % (end - start))
+                # logging.info("Load model time: %.3f s." % (end - start))
 
             else:
                 raise FileNotFoundError(
@@ -200,7 +205,7 @@ if __name__ == "__main__":
             out = out.detach().cpu().numpy()[:, label_mapping]
             pred_avg_meter.update(out, 1)
             end = time.perf_counter()
-            logging.info("Single model running time: %.3f s." % (end - start))
+            # logging.info("Single model running time: %.3f s." % (end - start))
             
         start=time.perf_counter()
         if gt.is_sparse:
