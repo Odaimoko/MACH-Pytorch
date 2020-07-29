@@ -47,6 +47,7 @@ def get_inv_hash(counts, inv_mapping, j):
 
 
 def single_rep(data_cfg, model_cfg, r):
+    cuda = torch.cuda.is_available()
     # load ground truth
     a.__dict__['rep'] = r
     model_dir = get_model_dir(data_cfg, model_cfg, a)
@@ -57,7 +58,12 @@ def single_rep(data_cfg, model_cfg, r):
     best_param = os.path.join(model_dir, model_cfg["best_file"])
     preload_path = model_cfg["pretrained"] if model_cfg["pretrained"] else best_param
     if os.path.exists(preload_path):
-        meta_info = torch.load(preload_path)
+        if cuda:
+            meta_info = torch.load(preload_path)
+        else:
+            meta_info = torch.load(
+                preload_path, map_location=lambda storage, loc: storage)
+
         model.load_state_dict(meta_info['model'])
     else:
         raise FileNotFoundError(
