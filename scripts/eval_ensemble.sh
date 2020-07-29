@@ -20,11 +20,11 @@ for ((i = 0; i < 8; i++)); do
        if [ -z $COST ]; then
            echo nocost
            python -W ignore::Warning src/run_single_n_save.py --rep $part --model $MODEL_CONFIG \
-               --dataset $DATASET_CONFIG --gpus 0 &
+               --dataset $DATASET_CONFIG --gpus 0 
        else
            echo heicost
            python -W ignore::Warning src/run_single_n_save.py --rep $part --model $MODEL_CONFIG \
-               --dataset $DATASET_CONFIG --gpus 0  --cost $COST &
+               --dataset $DATASET_CONFIG --gpus 0  --cost $COST 
        fi
    done
    wait
