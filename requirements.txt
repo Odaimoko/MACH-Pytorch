@@ -5,3 +5,4 @@ torch
 torchnet
 scikit-learn
 tqdm
+cachetools

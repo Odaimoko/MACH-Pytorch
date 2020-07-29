@@ -85,8 +85,9 @@ def train(data_cfg, model_cfg, a, gpus, train_loader, val_loader):
 
     layers = [dest_dim] + model_cfg['hidden'] + [b]
     model = FCNetwork(layers)
+    model = torch.nn.DataParallel(model, device_ids=gpus)
     if cuda:
-        model = torch.nn.DataParallel(model, device_ids=gpus).cuda()
+        model = model.cuda()
     opt = torch.optim.Adam(model.parameters(), lr=model_cfg['lr'])
     lr_sch = torch.optim.lr_scheduler.MultiStepLR(
         opt, model_cfg['lr_step'], model_cfg['lr_factor'])
@@ -95,7 +96,11 @@ def train(data_cfg, model_cfg, a, gpus, train_loader, val_loader):
     preload_path = model_cfg["pretrained"] if model_cfg["pretrained"] else latest_param
     if os.path.exists(preload_path):
         meta_info = torch.load(preload_path)
-        model.load_state_dict(meta_info['model'])
+        if cuda:
+            meta_info = torch.load(preload_path)
+        else:
+            meta_info = torch.load(
+                preload_path, map_location=lambda storage, loc: storage)
         opt.load_state_dict(meta_info['opt'])
         lr_sch.load_state_dict(meta_info['lr_sch'])
         begin = meta_info['epoch']
