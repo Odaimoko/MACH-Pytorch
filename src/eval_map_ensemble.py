@@ -170,6 +170,7 @@ if __name__ == "__main__":
     ap = np.concatenate(ap_values)
     map = ap.mean()
     d = {
+        
         "mAP": [map]
     }
     log_eval_results(d)
