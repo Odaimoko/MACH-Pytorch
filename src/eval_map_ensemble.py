@@ -155,10 +155,8 @@ if __name__ == "__main__":
     while start < num_labels:
         end = min(start + a.bs, num_labels)
         for r in range(R):
-            print("REP", r, end='\t')
-            scores += preds[r][:, label_mapping[start:end]]
+            scores += preds[r][:, l_maps[r][start:end]]
         scores = scores / R  # num_ins x bs
-        # only a batch of eval flags
         hajime = time.perf_counter()
 
         ap_meter.add(scores, gt[:, start:end].todense())
