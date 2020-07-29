@@ -146,6 +146,7 @@ if __name__ == "__main__":
     ap_values = []
     pbar = tqdm.tqdm(total=int(num_labels / a.bs))
     while start < num_labels:
+        lfu = cachetools.LRUCache(R * a.bs * a.cs)
         end = min(start + a.bs, num_labels)
         hashed_labels = l_maps[:, start:end]  # R x bs
         hajime = time.perf_counter()
@@ -165,11 +166,12 @@ if __name__ == "__main__":
                 lfu[key] = out
         owaru = time.perf_counter()
         print("Load prediction pickles: %.3f s. Current cache size %d out of %d." %
-              (owaru - hajime, lfu.currsize,lfu.maxsize))
+              (owaru - hajime, lfu.currsize, lfu.maxsize))
         scores = []
         for ori_l in range(start, end):
             score = [lfu[(r, l_maps[r, ori_l])] for r in range(R)]
             scores.append(np.stack(score).mean(axis=0))
+        lfu.clear()
         scores = np.stack(scores).T
 
         # only a batch of eval flags
