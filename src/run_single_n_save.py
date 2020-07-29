@@ -110,8 +110,9 @@ if __name__ == "__main__":
     # construct model
     layers = [dest_dim] + model_cfg['hidden'] + [b]
     model = FCNetwork(layers)
+    model = torch.nn.DataParallel(model, device_ids=gpus)
     if cuda:
-        model = torch.nn.DataParallel(model, device_ids=gpus).cuda()
+        model=model.cuda()
     label_path = os.path.join(record_dir, "_".join(
         [prefix, str(num_labels), str(b), str(R)]))  # Bibtex_159_100_32
 
