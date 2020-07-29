@@ -47,30 +47,7 @@ def get_inv_hash(counts, inv_mapping, j):
 
 
 def single_rep(data_cfg, model_cfg, r):
-    cuda = torch.cuda.is_available()
-    # load ground truth
-    a.__dict__['rep'] = r
-    model_dir = get_model_dir(data_cfg, model_cfg, a)
-    # load mapping
-    counts, label_mapping, inv_mapping = get_label_hash(label_path, r)
-    label_mapping = torch.from_numpy(label_mapping)
-    # load models
-    best_param = os.path.join(model_dir, model_cfg["best_file"])
-    preload_path = model_cfg["pretrained"] if model_cfg["pretrained"] else best_param
-    if os.path.exists(preload_path):
-        if cuda:
-            meta_info = torch.load(preload_path)
-        else:
-            meta_info = torch.load(
-                preload_path, map_location=lambda storage, loc: storage)
-
-        model.load_state_dict(meta_info['model'])
-    else:
-        raise FileNotFoundError(
-            "Model {} does not exist.".format(preload_path))
-    # predict. gt: original label. p: hashed.
-    gt, p, _, _ = compute_scores(model, test_loader)
-    return gt, p[:, label_mapping]
+    return
 
 
 def map_trimmed_back(scores, data_dir, prefix, ori_labels):
@@ -146,7 +123,11 @@ if __name__ == "__main__":
     preload_path = model_cfg["pretrained"] if model_cfg["pretrained"] else best_param
     if os.path.exists(preload_path):
         start = time.perf_counter()
-        meta_info = torch.load(preload_path)
+        if cuda:
+            meta_info = torch.load(preload_path)
+        else:
+            meta_info = torch.load(
+                preload_path, map_location=lambda storage, loc: storage)
         model.load_state_dict(meta_info['model'])
         end = time.perf_counter()
         logging.info("Load model time: %.3f s." % (end - start))
