@@ -149,7 +149,6 @@ if __name__ == "__main__":
     scaled_eval_flags = []
     eval_flags = []
     ps_eval_flags = []
-    map_meter = meter.mAPMeter()
 
     models = []
     for r in range(R):
@@ -223,7 +222,6 @@ if __name__ == "__main__":
 
         # only a batch of eval flags
         scores = pred_avg_meter.avg
-        # map_meter.add(scores, gt.todense())
 
         indices, true_labels, ps_indices, inv_psp = xc_metrics. \
             _setup_metric(scores, gt, inv_propen)
@@ -263,7 +261,7 @@ if __name__ == "__main__":
         "ndcg": ndcg,
         "psp": PSprec,
         "psn": PSnDCG,
-        "mAP": [map_meter.value()]
+
     }
     log_eval_results(d)
     # map trimmed labels back to original ones
