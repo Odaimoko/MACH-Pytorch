@@ -36,7 +36,8 @@ def get_args():
                    Should be a string containing trimming rates split by comma. Eg '0.1,0.2'. Default '0.1'.""")
     p.add_argument("--batch_size", '-bs', dest="bs", type=int, required=False, default="32",
                    help="""Evaluation batch size.""")
-
+    p.add_argument("--cache_size", '-cs', dest="cs", type=int, required=False, default="32",
+                    help="""LRU cache size.""")
     return p.parse_args()
 
 
@@ -138,7 +139,7 @@ if __name__ == "__main__":
         counts, label_mapping, inv_mapping = get_label_hash(label_path, r)
         l_maps.append(label_mapping)
     l_maps = np.stack(l_maps, axis=0)  # R x #labels
-    lfu = cachetools.LRUCache(R * a.bs*5)
+    lfu = cachetools.LRUCache(R * a.bs * a.cs)
 
     start = 0
     scores = 0
