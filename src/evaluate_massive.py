@@ -191,7 +191,12 @@ if __name__ == "__main__":
             preload_path = model_cfg["pretrained"] if model_cfg["pretrained"] else best_param
             if os.path.exists(preload_path):
                 start = time.perf_counter()
-                meta_info = torch.load(preload_path)
+            if os.path.exists(preload_path):
+                if cuda:
+                    meta_info = torch.load(preload_path)
+                else:
+                    meta_info = torch.load(
+                        preload_path, map_location=lambda storage, loc: storage)
                 model.load_state_dict(meta_info['model'])
                 end = time.perf_counter()
                 logging.info("Load model time: %.3f s." % (end - start))
