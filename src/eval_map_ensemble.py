@@ -142,8 +142,8 @@ if __name__ == "__main__":
         counts, label_mapping, inv_mapping = get_label_hash(label_path, r)
         # load label mapping
         single_model_dir = get_model_dir(data_cfg, model_cfg, a)
-        filename = os.path.join(single_model_dir, "pred.npy")
-        out = np.load(filename)  # ins x B
+        filename = os.path.join(single_model_dir, "pred.npz")
+        out = scipy.sparse.load_npz(filename)  # ins x B
         l_maps.append(label_mapping)
         preds.append(out)
         owaru = time.perf_counter()
@@ -164,7 +164,7 @@ if __name__ == "__main__":
         scores = scores / R  # num_ins x bs
         hajime = time.perf_counter()
 
-        ap_meter.add(scores, gt[:, start:end].todense())
+        ap_meter.add(scores.todense(), gt[:, start:end].todense())
         ap_values.append(ap_meter.value())
         start += a.bs
         ap_meter.reset()
