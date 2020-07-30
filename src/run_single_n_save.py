@@ -24,12 +24,14 @@ def get_args():
                    help = "Path to the data config yaml file.")
     p.add_argument("--gpus", '-g', dest = "gpus", type = str, required = False, default = "0",
                    help = "A string that specifies which GPU you want to use, split by comma. Eg 0,1")
-    
     p.add_argument("--cost", '-c', dest = "cost", type = str, required = False, default = '',
                    help = "Use cost-sensitive model or not. Should be in [hashed, original]. "
                           "Default empty string, which indicates that no cost-sensitive is used.")
     p.add_argument("--batch_size", '-bs', dest = "bs", type = int, required = False, default = "32",
                    help = """Evaluation batch size.""")
+    p.add_argument("--approx_rate", '-a', dest = "approx_rate", type = float, required = False, default = ".1",
+                   help = """Evaluation batch size.""")
+
     
     return p.parse_args()
 
@@ -152,7 +154,7 @@ if __name__ == "__main__":
     gts = []
     feat_mapping = get_feat_hash(feat_path, r)
     
-    num_keep = int(b * .1)
+    num_keep = int(b * a.approx_rate)
     for i, data in enumerate(tqdm.tqdm(test_loader)):
         X, gt = data
         bs = X.shape[0]

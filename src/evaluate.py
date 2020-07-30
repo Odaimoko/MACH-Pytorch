@@ -62,6 +62,11 @@ def single_rep(data_cfg, model_cfg, r):
         else:
             meta_info = torch.load(
                 preload_path, map_location=lambda storage, loc: storage)
+        
+        for k in list(meta_info['model'].keys()):  # load un-dataparallel model into dataparallel
+            if "module." not in k:
+                meta_info['model']["module." + k] = meta_info['model'][k]
+                del meta_info['model'][k]
         model.load_state_dict(meta_info['model'])
     else:
         raise FileNotFoundError(
