@@ -151,10 +151,10 @@ if __name__ == "__main__":
 
     l_maps = np.stack(l_maps, axis=0)  # R x #labels
     start = 0
-    scores = 0
     ap_values = []
     pbar = tqdm.tqdm(total=int(num_labels / a.bs))
     while start < num_labels:
+        scores = 0
         lfu = cachetools.LRUCache(R * a.bs * a.cs)
         end = min(start + a.bs, num_labels)
         hashed_labels = l_maps[:, start:end]  # R x bs
