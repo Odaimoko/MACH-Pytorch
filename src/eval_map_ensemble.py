@@ -135,12 +135,21 @@ if __name__ == "__main__":
     gt = scipy.sparse.load_npz(gt_filename).tocsc()
     # get label mappings
     l_maps = []
+    preds = []
     for r in range(R):
+        hajime = time.perf_counter()
+        a.__dict__['rep'] = r
         counts, label_mapping, inv_mapping = get_label_hash(label_path, r)
+        # load label mapping
+        single_model_dir = get_model_dir(data_cfg, model_cfg, a)
+        filename = os.path.join(single_model_dir, "pred.npy")
+        out = np.load(filename)  # ins x B
         l_maps.append(label_mapping)
-    l_maps = np.stack(l_maps, axis=0)  # R x #labels
-    lfu = cachetools.LRUCache(R * a.bs * a.cs)
+        preds.append(out)
+        owaru = time.perf_counter()
+        print("Load single rep: %.3f s." % (owaru - hajime))
 
+    l_maps = np.stack(l_maps, axis=0)  # R x #labels
     start = 0
     scores = 0
     ap_values = []
@@ -151,30 +160,8 @@ if __name__ == "__main__":
         hashed_labels = l_maps[:, start:end]  # R x bs
         hajime = time.perf_counter()
         for r in range(R):
-            # print("REP", r, end = '\t')
-            read_in_labels = set(hashed_labels[r])
-            for hash_l in read_in_labels:
-                key = (r, hash_l)
-                if key in lfu:
-                    _ = lfu[r, hash_l]
-                    continue
-                a.__dict__['rep'] = r
-                single_model_dir = get_model_dir(data_cfg, model_cfg, a)
-                filename = os.path.join(
-                    single_model_dir, "pred_{b:02d}.npy".format(b=hash_l))
-                out = np.load(filename)
-                lfu[key] = out
-        owaru = time.perf_counter()
-        print("Load prediction pickles: %.3f s. Current cache size %d out of %d." %
-              (owaru - hajime, lfu.currsize, lfu.maxsize))
-        scores = []
-        for ori_l in range(start, end):
-            score = [lfu[(r, l_maps[r, ori_l])] for r in range(R)]
-            scores.append(np.stack(score).mean(axis=0))
-        lfu.clear()
-        scores = np.stack(scores).T
-
-        # only a batch of eval flags
+            scores += preds[r][:, l_maps[r][start:end]]
+        scores = scores / R  # num_ins x bs
         hajime = time.perf_counter()
 
         ap_meter.add(scores, gt[:, start:end].todense())
@@ -188,6 +175,7 @@ if __name__ == "__main__":
     ap = np.concatenate(ap_values)
     map = ap.mean()
     d = {
+        
         "mAP": [map]
     }
     log_eval_results(d)

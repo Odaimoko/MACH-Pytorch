@@ -112,7 +112,7 @@ if __name__ == "__main__":
     model = FCNetwork(layers)
     model = torch.nn.DataParallel(model, device_ids=gpus)
     if cuda:
-        model=model.cuda()
+        model = model.cuda()
     label_path = os.path.join(record_dir, "_".join(
         [prefix, str(num_labels), str(b), str(R)]))  # Bibtex_159_100_32
 
@@ -184,9 +184,8 @@ if __name__ == "__main__":
     outs = np.concatenate(outs)
     # concat only
     gts = scipy.sparse.vstack(gts)
-    # save the output of the model into b files
-    for i in range(b):
-        filename = os.path.join(model_dir, "pred_{b:02d}.npy".format(b=i))
-        np.save(filename, outs[:, i])
+    # save output of one model into a file
+    filename = os.path.join(model_dir, "pred.npy")
+    np.save(filename, outs)
 
     scipy.sparse.save_npz(os.path.join(model_dir, "gt.npz"), gts)
